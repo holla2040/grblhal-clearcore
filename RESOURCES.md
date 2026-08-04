@@ -40,6 +40,8 @@ No code may touch a peripheral that is not recorded here.
 | GMAC (AHB+APBC) + GMAC_IRQn | gmac.c | Ethernet MAC, rings 16×128 RX / 8×520 TX (Teknic sizes); ISR ack-only | **3** | 6 |
 | RMII pins PA12-PA15,PA17-PA19,PC20 + MDC PC11/MDIO PC12 (pmux L) | gmac.c | RMII + station mgmt to KSZ8081 (PHY addr 0, link POLLED — PC28/EXTINT12 left unclaimed) | — | 6 |
 | NVM user page bytes 468–475 (read-only) | gmac.c | board MAC address (Teknic default fallback) | — | 6 |
+| SERCOM4 (SPI master, polled, GCLK0 core) | sd_spi.c | microSD: 400 kHz init / 20 MHz data | none | 7 |
+| pins PB08/PB09/PB10 (pmux D: PAD0/1/2) + PA04 (GPIO CS) | sd_spi.c | SD MOSI/SCK/MISO/CS (MISO pulled up: empty socket reads 0xFF) | — | 7 |
 
 ## Planned claims (from PLAN.md §3 — provisional until the row moves up)
 
@@ -48,7 +50,6 @@ No code may touch a peripheral that is not recorded here.
 | DAC (Aout00 PA02) + SR bit 20 wire-LOW | optional 4-20 mA analog spindle on IO-0 (would displace mist) |
 | pin PB00 (input) | DRV8844 FAULTn monitor for IO-4/IO-5 (active low) |
 | GMAC + PHY_INT EXTINT12 | Ethernet (Phase 6), prio 3 |
-| SERCOM4 + GCLK route | microSD SPI (Phase 7; Teknic used GCLK7 @ 10 MHz) |
 
 ## Free (verified unclaimed)
 

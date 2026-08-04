@@ -10,3 +10,6 @@
 [submodule "src/lwip"]
 	path = src/lwip
 	url = https://github.com/lwip-tcpip/lwip
+[submodule "src/sdcard"]
+	path = src/sdcard
+	url = https://github.com/grblHAL/Plugin_SD_card

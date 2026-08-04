@@ -32,6 +32,7 @@
 #define ETHERNET_ENABLE 1
 #define TELNET_ENABLE 1
 
-// Plugins: sdcard arrives in Phase 7
+// SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
+#define SDCARD_ENABLE 1
 
 #endif

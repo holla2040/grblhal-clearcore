@@ -28,6 +28,11 @@
 #include "enet.h"
 #endif
 
+#if SDCARD_ENABLE
+#include "sdcard/sdcard.h"
+#include "sd_spi.h"
+#endif
+
 #include "grbl/grbllib.h"
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
@@ -450,6 +455,11 @@ static bool driver_setup (settings_t *settings)
 
     hal.stepper.go_idle(true);
     hal.coolant.set_state((coolant_state_t){0});
+
+#if SDCARD_ENABLE
+    sd_spi_init();      /* SERCOM4; no card-detect line — mount on demand */
+    sdcard_init();
+#endif
 
     return IOInitDone;
 }
