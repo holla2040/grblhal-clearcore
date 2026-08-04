@@ -25,7 +25,6 @@
 
 #include "clearcore.h"
 #include "sd_spi.h"
-#include "debug_uart.h"
 
 #define SD_MOSI_GRP  GRP_B      /* PB08 = SERCOM4 PAD0 */
 #define SD_MOSI_PIN  8
@@ -65,9 +64,7 @@ void sd_spi_speed(bool fast)
     spi->BAUD.reg = fast ? SD_SPI_BAUD(SD_SPI_HZ_FAST) : SD_SPI_BAUD(SD_SPI_HZ_SLOW);
 
     spi->CTRLA.bit.ENABLE = 1;
-    dbg_puts("sd: enable\n");
     SYNCBUSY_WAIT(spi, SERCOM_SPI_SYNCBUSY_ENABLE);
-    dbg_puts("sd: enable done\n");
 }
 
 uint8_t sd_spi_xfer(uint8_t data)
@@ -158,16 +155,13 @@ void sd_spi_init(void)
 
     /* CS idle high before the pin becomes an output, so no glitch reaches
        the card while the SERCOM is still unconfigured */
-    dbg_puts("sd: cs\n");
     pin_write(SD_CS_GRP, SD_CS_PIN, true);
     pin_dir_out(SD_CS_GRP, SD_CS_PIN);
 
-    dbg_puts("sd: clocks\n");
     CLOCK_ENABLE(APBDMASK, SERCOM4_);
     /* TEST: 120 MHz GCLK0 exceeds the SERCOM 100 MHz core-clock spec —
        suspected cause of the enable-write CPU stall. GCLK5 = 1 MHz. */
     SET_CLOCK_SOURCE(SERCOM4_GCLK_ID_CORE, 5);
-    dbg_puts("sd: clocks done\n");
 
     /* MISO needs the input buffer on, plus a pull-up so an empty socket
        reads 0xFF (card absent) instead of a floating level */
@@ -178,10 +172,8 @@ void sd_spi_init(void)
     pin_pmux(SD_SCK_GRP, SD_SCK_PIN, SD_PMUX_FUNC);
     pin_pmux(SD_MISO_GRP, SD_MISO_PIN, SD_PMUX_FUNC);
 
-    dbg_puts("sd: swrst\n");
     spi->CTRLA.bit.SWRST = 1;
     SYNCBUSY_WAIT(spi, SERCOM_SPI_SYNCBUSY_SWRST);
-    dbg_puts("sd: swrst done\n");
 
     /* SPI master, DO=PAD0/SCK=PAD1 (DOPO=0), DI=PAD2 (DIPO=2),
        MSB first, CPOL=0/CPHA=0 (mode 0) */
@@ -189,9 +181,7 @@ void sd_spi_init(void)
                      SERCOM_SPI_CTRLA_DOPO(0x0) |
                      SERCOM_SPI_CTRLA_DIPO(0x2);
     spi->CTRLB.bit.RXEN = 1;
-    dbg_puts("sd: ctrlb\n");
     SYNCBUSY_WAIT(spi, SERCOM_SPI_SYNCBUSY_CTRLB);
-    dbg_puts("sd: ctrlb done\n");
 
     spi->BAUD.reg = SD_SPI_BAUD(SD_SPI_HZ_SLOW);
 

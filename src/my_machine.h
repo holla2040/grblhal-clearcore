@@ -31,7 +31,10 @@
 // USB CDC console (TinyUSB): primary stream when connected, UART stays
 // registered as an instance. Comment out to go UART-only.
 #define USB_SERIAL_CDC 1
-#define DIAG_SETUP_LEVEL 5
+
+// Debug console: 115200 TX-only on IO-0 (combined I/O header pin 12, load
+// with ~1.5k to GND for 3.3V logic). Claims IO-0 — mist output unavailable.
+#define DEBUG_CONSOLE_ENABLE 1
 
 // Ethernet (SAME53 GMAC + lwIP + networking plugin), telnet first
 #define ETHERNET_ENABLE 1

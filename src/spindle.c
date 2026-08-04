@@ -122,9 +122,6 @@ static bool spindleConfig (spindle_ptrs_t *spindle)
     /* TCC4 is 16-bit: pick the smallest prescaler that fits the period */
     static const uint16_t divs[8] = { 1, 2, 4, 8, 16, 64, 256, 1024 };
 
-    extern volatile uint8_t boot_stage;
-    boot_stage = 5;         /* spindleConfig entered */
-
     if(spindle == NULL)
         return false;
 
@@ -160,8 +157,6 @@ static bool spindleConfig (spindle_ptrs_t *spindle)
     }
 
     spindle_update_caps(spindle, spindle->cap.variable ? &spindle_pwm : NULL);
-
-    boot_stage = 6;         /* spindleConfig completed */
 
     return true;
 }

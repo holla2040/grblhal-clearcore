@@ -11,7 +11,10 @@
  */
 
 #include "clearcore.h"
+#include "my_machine.h"
 #include "debug_uart.h"
+
+#if DEBUG_CONSOLE_ENABLE
 
 void dbg_init(void)
 {
@@ -73,3 +76,5 @@ void dbg_dec(uint32_t v)
     do { buf[--i] = '0' + v % 10; v /= 10; } while (v && i);
     dbg_puts(&buf[i]);
 }
+
+#endif /* DEBUG_CONSOLE_ENABLE */

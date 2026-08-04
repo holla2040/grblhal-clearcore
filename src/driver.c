@@ -261,7 +261,6 @@ static on_execute_realtime_ptr on_execute_delay_usb_prev;
 
 static void usb_rt_poll (sys_state_t state)
 {
-    boot_stage = 11;        /* main loop + USB pump alive */
     usb_poll();
     on_execute_realtime_usb_prev(state);
 }
@@ -374,16 +373,13 @@ static uint_fast16_t valueSetAtomic (volatile uint_fast16_t *ptr, uint_fast16_t 
 
 static bool nvsRead (uint8_t *dest)
 {
-    boot_stage = 3;         /* nvsRead entered */
     memcpy(dest, (void *)NVS_FLASH_ADDR, NVS_SIZE);
-    boot_stage = 4;         /* nvsRead completed */
 
     return true;
 }
 
 static bool nvsWrite (uint8_t *source)
 {
-    /* nvsWrite marker removed */
 
     uint32_t *src = (uint32_t *)source;
     uint32_t page_addr = NVS_FLASH_ADDR;
@@ -397,7 +393,6 @@ static bool nvsWrite (uint8_t *source)
     NVMCTRL->CTRLB.reg = NVMCTRL_CTRLB_CMD_EB | NVMCTRL_CTRLB_CMDEX_KEY;
     while(!NVMCTRL->STATUS.bit.READY);
 
-    /* (erase marker removed for this diag build) */
 
     /* Write pages: clear page buffer, fill via 32-bit writes, commit */
     while(pages--) {
@@ -424,7 +419,6 @@ static bool nvsWrite (uint8_t *source)
     CMCC->MAINT0.reg = CMCC_MAINT0_INVALL;
     CMCC->CTRL.reg = CMCC_CTRL_CEN;
 
-    /* nvsWrite marker removed */
 
     return true;
 }
@@ -441,28 +435,15 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
     }
 }
 
-/* TEMP DIAG: DIAG_SETUP_LEVEL bisection — 0 skips the whole body, higher
-   levels re-add init blocks one at a time. REVERT BEFORE COMMIT. */
-#ifndef DIAG_SETUP_LEVEL
-#define DIAG_SETUP_LEVEL 5
-#endif
-
 static bool driver_setup (settings_t *settings)
 {
-    boot_stage = 9;         /* driver_setup entered */
 
-#if DIAG_SETUP_LEVEL >= 1
     dbg_puts("setup: stepper\n");
     stepper_hw_init();      /* TC4/TC5 + TC6 (GCLK2 from SystemInit), '125 gates low */
-#endif
-#if DIAG_SETUP_LEVEL >= 2
     dbg_puts("setup: inputs\n");
     inputs_init();          /* EIC limits/control + probe/HLFB inputs */
-#endif
-#if DIAG_SETUP_LEVEL >= 3
     dbg_puts("setup: outputs\n");
     outputs_init();         /* coolant pins (spindle pins init in spindle_cc_register) */
-#endif
 
 #if USB_SERIAL_CDC
     on_execute_realtime_usb_prev = grbl.on_execute_realtime;
@@ -478,20 +459,18 @@ static bool driver_setup (settings_t *settings)
 
     IOInitDone = settings->version.id == 23;    /* SETTINGS_VERSION of the pinned core */
 
-    dbg_puts("setup: settings_changed\n");
     settings_changed(settings, (settings_changed_flags_t){0});
 
-    dbg_puts("setup: go_idle+coolant\n");
     hal.stepper.go_idle(true);
     hal.coolant.set_state((coolant_state_t){0});
 
-#if SDCARD_ENABLE && DIAG_SETUP_LEVEL >= 4
+#if SDCARD_ENABLE
     dbg_puts("setup: sd\n");
     sd_spi_init();      /* SERCOM4; no card-detect line — mount on demand */
     sdcard_init();
 #endif
 
-#if ETHERNET_ENABLE && DIAG_SETUP_LEVEL >= 5
+#if ETHERNET_ENABLE
     dbg_puts("setup: enet\n");
     /* Must run from driver_setup, NOT driver_init: it calls nvs_alloc()
        and settings_register(), which need the core's NVS/settings up —
@@ -499,8 +478,8 @@ static bool driver_setup (settings_t *settings)
     grbl_enet_start();
 #endif
 
-    dbg_puts("setup: DONE\n");
-    boot_stage = 10;        /* driver_setup completed */
+
+    dbg_puts("setup: done\n");
 
     return IOInitDone;
 }
@@ -511,9 +490,8 @@ bool driver_init (void)
 {
     /* Clocks were configured by Reset_Handler/SystemInit; board bring-up: */
     dbg_init();
-    dbg_puts("\n== grblhal-clearcore boot ==\n");
+    dbg_puts("\ngrblhal-clearcore boot\n");
     sr_init();
-    dbg_puts("sr_init done\n");
     systick_init();
     systick_hook = systick_hook_fn;
 
@@ -589,7 +567,6 @@ bool driver_init (void)
        driver_init, at the end. */
 #include "grbl/plugins_init.h"
 
-    boot_stage = 2;         /* driver_init completed */
 
     return hal.version == 10;
 }
