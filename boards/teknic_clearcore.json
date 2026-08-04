@@ -1,0 +1,40 @@
+{
+  "build": {
+    "cpu": "cortex-m4",
+    "f_cpu": "120000000L",
+    "hwids": [
+      [
+        "0x239A",
+        "0x80CD"
+      ],
+      [
+        "0x239A",
+        "0x00CD"
+      ]
+    ],
+    "mcu": "atsame53n19a",
+    "system": "samd"
+  },
+  "debug": {
+    "jlink_device": "ATSAME53N19A",
+    "openocd_chipname": "atsame53n19a",
+    "openocd_target": "atsame5x",
+    "svd_path": "ATSAME53N19A.svd"
+  },
+  "name": "Teknic ClearCore",
+  "upload": {
+    "disable_flushing": true,
+    "maximum_ram_size": 196608,
+    "maximum_size": 507904,
+    "native_usb": true,
+    "offset_address": "0x4000",
+    "protocol": "atmel-ice",
+    "protocols": [
+      "atmel-ice",
+      "sam-ba",
+      "jlink"
+    ]
+  },
+  "url": "https://teknic.com/products/io-motion-controller/",
+  "vendor": "Teknic"
+}

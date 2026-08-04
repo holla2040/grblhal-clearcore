@@ -1,0 +1,8 @@
+.pio/
+*.o
+*.elf
+*.bin
+!bootloader-16k.bin
+*~
+*.swp
+*.swo
