@@ -13,5 +13,6 @@ uint32_t millis(void);
 void delay_ms(uint32_t ms);
 
 extern void (*systick_hook)(void);  /* optional per-ms callback, ISR context */
+extern volatile uint8_t boot_stage;     /* blink-counted boot telemetry */
 
 #endif /* SYSTICK_H */

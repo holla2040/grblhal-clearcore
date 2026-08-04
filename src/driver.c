@@ -16,6 +16,7 @@
 #include "serial.h"
 #include "shiftreg.h"
 #include "systick.h"
+#include "debug_uart.h"
 #include "stepper.h"
 #include "spindle_cc.h"
 #include "boards/clearcore_map.h"
@@ -260,6 +261,7 @@ static on_execute_realtime_ptr on_execute_delay_usb_prev;
 
 static void usb_rt_poll (sys_state_t state)
 {
+    boot_stage = 11;        /* main loop + USB pump alive */
     usb_poll();
     on_execute_realtime_usb_prev(state);
 }
@@ -372,13 +374,17 @@ static uint_fast16_t valueSetAtomic (volatile uint_fast16_t *ptr, uint_fast16_t 
 
 static bool nvsRead (uint8_t *dest)
 {
+    boot_stage = 3;         /* nvsRead entered */
     memcpy(dest, (void *)NVS_FLASH_ADDR, NVS_SIZE);
+    boot_stage = 4;         /* nvsRead completed */
 
     return true;
 }
 
 static bool nvsWrite (uint8_t *source)
 {
+    /* nvsWrite marker removed */
+
     uint32_t *src = (uint32_t *)source;
     uint32_t page_addr = NVS_FLASH_ADDR;
     uint_fast8_t pages = NVS_SIZE / NVMCTRL_PAGE_SIZE;
@@ -390,6 +396,8 @@ static bool nvsWrite (uint8_t *source)
     NVMCTRL->ADDR.reg = NVS_FLASH_ADDR;
     NVMCTRL->CTRLB.reg = NVMCTRL_CTRLB_CMD_EB | NVMCTRL_CTRLB_CMDEX_KEY;
     while(!NVMCTRL->STATUS.bit.READY);
+
+    /* (erase marker removed for this diag build) */
 
     /* Write pages: clear page buffer, fill via 32-bit writes, commit */
     while(pages--) {
@@ -416,6 +424,8 @@ static bool nvsWrite (uint8_t *source)
     CMCC->MAINT0.reg = CMCC_MAINT0_INVALL;
     CMCC->CTRL.reg = CMCC_CTRL_CEN;
 
+    /* nvsWrite marker removed */
+
     return true;
 }
 
@@ -431,11 +441,28 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
     }
 }
 
+/* TEMP DIAG: DIAG_SETUP_LEVEL bisection — 0 skips the whole body, higher
+   levels re-add init blocks one at a time. REVERT BEFORE COMMIT. */
+#ifndef DIAG_SETUP_LEVEL
+#define DIAG_SETUP_LEVEL 5
+#endif
+
 static bool driver_setup (settings_t *settings)
 {
-    stepper_hw_init();      /* GCLK2, TC4/TC5 + TC6, step/dir GPIO, '125 gates low */
+    boot_stage = 9;         /* driver_setup entered */
+
+#if DIAG_SETUP_LEVEL >= 1
+    dbg_puts("setup: stepper\n");
+    stepper_hw_init();      /* TC4/TC5 + TC6 (GCLK2 from SystemInit), '125 gates low */
+#endif
+#if DIAG_SETUP_LEVEL >= 2
+    dbg_puts("setup: inputs\n");
     inputs_init();          /* EIC limits/control + probe/HLFB inputs */
+#endif
+#if DIAG_SETUP_LEVEL >= 3
+    dbg_puts("setup: outputs\n");
     outputs_init();         /* coolant pins (spindle pins init in spindle_cc_register) */
+#endif
 
 #if USB_SERIAL_CDC
     on_execute_realtime_usb_prev = grbl.on_execute_realtime;
@@ -451,15 +478,29 @@ static bool driver_setup (settings_t *settings)
 
     IOInitDone = settings->version.id == 23;    /* SETTINGS_VERSION of the pinned core */
 
+    dbg_puts("setup: settings_changed\n");
     settings_changed(settings, (settings_changed_flags_t){0});
 
+    dbg_puts("setup: go_idle+coolant\n");
     hal.stepper.go_idle(true);
     hal.coolant.set_state((coolant_state_t){0});
 
-#if SDCARD_ENABLE
+#if SDCARD_ENABLE && DIAG_SETUP_LEVEL >= 4
+    dbg_puts("setup: sd\n");
     sd_spi_init();      /* SERCOM4; no card-detect line — mount on demand */
     sdcard_init();
 #endif
+
+#if ETHERNET_ENABLE && DIAG_SETUP_LEVEL >= 5
+    dbg_puts("setup: enet\n");
+    /* Must run from driver_setup, NOT driver_init: it calls nvs_alloc()
+       and settings_register(), which need the core's NVS/settings up —
+       calling it early wedged the first bench boot (2026-08-04). */
+    grbl_enet_start();
+#endif
+
+    dbg_puts("setup: DONE\n");
+    boot_stage = 10;        /* driver_setup completed */
 
     return IOInitDone;
 }
@@ -469,7 +510,10 @@ static bool driver_setup (settings_t *settings)
 bool driver_init (void)
 {
     /* Clocks were configured by Reset_Handler/SystemInit; board bring-up: */
+    dbg_init();
+    dbg_puts("\n== grblhal-clearcore boot ==\n");
     sr_init();
+    dbg_puts("sr_init done\n");
     systick_init();
     systick_hook = systick_hook_fn;
 
@@ -512,6 +556,12 @@ bool driver_init (void)
     hal.coolant_cap.mist = On;
     hal.driver_cap.probe = On;
     hal.driver_cap.step_pulse_delay = On;
+    hal.driver_cap.amass_level = 3;     /* REQUIRED: grbllib self-test checks
+                                           amass_level >= MAX_AMASS_LEVEL —
+                                           without it boot traps in
+                                           task_execute_on_startup (found via
+                                           blink-telemetry + PC dump, bench
+                                           2026-08-04) */
 
     hal.irq_enable = __enable_irq;
     hal.irq_disable = __disable_irq;
@@ -521,26 +571,25 @@ bool driver_init (void)
 
     serialRegisterStreams();
 
+    /* Never block boot on a stream: a motion controller must come up even
+       with no host attached. USB primary, UART fallback. */
 #if USB_SERIAL_CDC
     if(!stream_connect(usb_serialInit()))
-        while(true);    /* cannot boot without a communication channel */
+        stream_connect_instance(0, BAUD_RATE);      /* UART fallback */
 #else
-    if(!stream_connect_instance(SERIAL_STREAM, BAUD_RATE))
-        while(true);    /* cannot boot without a communication channel */
+    stream_connect_instance(SERIAL_STREAM, BAUD_RATE);
 #endif
 
     hal.nvs.type = NVS_Flash;
     hal.nvs.memcpy_from_flash = nvsRead;
     hal.nvs.memcpy_to_flash = nvsWrite;
 
-#if ETHERNET_ENABLE
-    grbl_enet_start();
-#endif
-
     /* Core-provided plugin bootstrap — initializes every enabled plugin
        (webui, my_plugin, ...). Org-driver convention: included INSIDE
        driver_init, at the end. */
 #include "grbl/plugins_init.h"
+
+    boot_stage = 2;         /* driver_init completed */
 
     return hal.version == 10;
 }

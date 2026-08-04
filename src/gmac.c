@@ -425,10 +425,13 @@ void gmac_init (uint8_t mac_out[6])
 
     /* Reset interrupts. Priority 3 per PLAN.md §3 — below the step and pulse
        timers (0) and the EIC limit/control inputs (2). */
+    /* Interrupts DISABLED: RX/TX are fully foreground-polled and the ISR
+       was counters-only. With a live cable the GMAC IRQ at prio 3 starved
+       USB (4) and SysTick (7) into a frozen board (bench 2026-08-04) —
+       polling needs none of it. GMAC_Handler retained but never fires. */
     NVIC_DisableIRQ(GMAC_IRQn);
     NVIC_ClearPendingIRQ(GMAC_IRQn);
-    NVIC_SetPriority(GMAC_IRQn, 3);
-    NVIC_EnableIRQ(GMAC_IRQn);
+    GMAC->IDR.reg = 0xFFFFFFFFu;
 
     /* Configure the GPIO pins. Every RMII and MDIO signal is peripheral
        function L (11) on this part. PMUXEN hands the pad to the peripheral
@@ -447,8 +450,7 @@ void gmac_init (uint8_t mac_out[6])
     /* PC28 (PHY INTRP, EXTINT12) is intentionally not claimed. */
 
     /* Enable appropriate GMAC interrupts. */
-    GMAC->IER.bit.TCOMP = 1;    /* Transmit complete */
-    GMAC->IER.bit.RCOMP = 1;    /* Receive complete */
+    /* (TCOMP/RCOMP interrupt enables removed — polled design) */
 
     /* Initialize the PHY */
     phy_initialize();

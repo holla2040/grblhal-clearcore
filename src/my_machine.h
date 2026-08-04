@@ -31,15 +31,16 @@
 // USB CDC console (TinyUSB): primary stream when connected, UART stays
 // registered as an instance. Comment out to go UART-only.
 #define USB_SERIAL_CDC 1
+#define DIAG_SETUP_LEVEL 5
 
 // Ethernet (SAME53 GMAC + lwIP + networking plugin), telnet first
 #define ETHERNET_ENABLE 1
 #define TELNET_ENABLE 1
 #define WEBSOCKET_ENABLE 1
 #define HTTP_ENABLE 1
-#define WEBUI_ENABLE 1          // assets served from SD /www (ESP3D-WebUI build)
+#define WEBUI_ENABLE 0  /* TEMP: forces SDCARD on via driver_opts */
 
 // SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
-#define SDCARD_ENABLE 1
+#define SDCARD_ENABLE 0 /* TEMP: SERCOM4 enable kills board — isolated, under investigation */
 
 #endif

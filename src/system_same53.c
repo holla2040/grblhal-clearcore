@@ -141,6 +141,16 @@ void SystemInit(void) {
                            GCLK_GENCTRL_SRC_DPLL0;
     SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL4);
 
+    // GCLK2 = 60 MHz for the step timers (TC4/TC5/TC6) and spindle PWM
+    // (TCC4). Created HERE, not in a driver init: TCC4 is soft-reset from
+    // driver_init, and SWRST on a timer whose GCLK generator is not yet
+    // running never completes (bench wedge, 2026-08-04).
+    GCLK->GENCTRL[2].reg = GCLK_GENCTRL_SRC(GCLK_GENCTRL_SRC_DPLL1_Val) |
+                           GCLK_GENCTRL_GENEN |
+                           GCLK_GENCTRL_DIV(2) |
+                           GCLK_GENCTRL_IDC;
+    SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL2);
+
     // Enable the cache controller
     CMCC->CTRL.reg = CMCC_CTRL_CEN;
     // Enable the FPU

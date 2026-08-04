@@ -195,13 +195,9 @@ void stepper_hw_init (void)
     pin_dir_out(STEP_GATE01_GRP, STEP_GATE01_PIN);
     pin_dir_out(STEP_GATE23_GRP, STEP_GATE23_PIN);
 
-    /* GCLK2 = DPLL1 / 2 = 60 MHz for TC4/TC5 (segment) + TC6 (pulse) */
-    GCLK->GENCTRL[2].reg = GCLK_GENCTRL_SRC(GCLK_GENCTRL_SRC_DPLL1_Val) |
-                           GCLK_GENCTRL_GENEN |
-                           GCLK_GENCTRL_DIV(2) |
-                           GCLK_GENCTRL_IDC;
-    SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL2);
-
+    /* GCLK2 (60 MHz, DPLL1/2) is created in SystemInit — it must exist
+       before ANY driver init touches TC4/TC5/TC6/TCC4 (SWRST on an
+       unclocked timer hangs forever; found the hard way on the bench). */
     CLOCK_ENABLE(APBCMASK, TC4_);
     CLOCK_ENABLE(APBCMASK, TC5_);           /* 32-bit slave of TC4 */
     CLOCK_ENABLE(APBDMASK, TC6_);

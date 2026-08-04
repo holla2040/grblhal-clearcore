@@ -105,8 +105,8 @@ void sr_init(void)
      * they are usable as limit/control inputs, underglow on as an
      * "our firmware is alive" indicator.
      */
-    sr_state = SR_UNDERGLOW |
-               SR_ANAIN_DIGITAL_09 | SR_ANAIN_DIGITAL_10 |
+    /* underglow starts OFF — the blink telemetry owns it from tick 1 */
+    sr_state = SR_ANAIN_DIGITAL_09 | SR_ANAIN_DIGITAL_10 |
                SR_ANAIN_DIGITAL_11 | SR_ANAIN_DIGITAL_12;
 
     /* Shift the initial word, latch it, shift it again, then enable outputs
