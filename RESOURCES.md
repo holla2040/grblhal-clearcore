@@ -37,6 +37,9 @@ No code may touch a peripheral that is not recorded here.
 | DPLL0 (96 MHz, ref GCLK5) + GCLK4 (48 MHz) | system_same53.c | USB clock | — | 5 |
 | USB peripheral + IRQs USB_OTHER/SOF/TRCPT0/TRCPT1 | usb_serial.c (TinyUSB) | CDC-ACM stream | 4 | 5 |
 | pins PA24, PA25 (pmux H) | usb_serial.c | USB DM/DP | — | 5 |
+| GMAC (AHB+APBC) + GMAC_IRQn | gmac.c | Ethernet MAC, rings 16×128 RX / 8×520 TX (Teknic sizes); ISR ack-only | **3** | 6 |
+| RMII pins PA12-PA15,PA17-PA19,PC20 + MDC PC11/MDIO PC12 (pmux L) | gmac.c | RMII + station mgmt to KSZ8081 (PHY addr 0, link POLLED — PC28/EXTINT12 left unclaimed) | — | 6 |
+| NVM user page bytes 468–475 (read-only) | gmac.c | board MAC address (Teknic default fallback) | — | 6 |
 
 ## Planned claims (from PLAN.md §3 — provisional until the row moves up)
 

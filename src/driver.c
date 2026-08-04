@@ -24,6 +24,10 @@
 #include "usb_serial.h"
 #endif
 
+#if ETHERNET_ENABLE
+#include "enet.h"
+#endif
+
 #include "grbl/grbllib.h"
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
@@ -518,6 +522,10 @@ bool driver_init (void)
     hal.nvs.type = NVS_Flash;
     hal.nvs.memcpy_from_flash = nvsRead;
     hal.nvs.memcpy_to_flash = nvsWrite;
+
+#if ETHERNET_ENABLE
+    grbl_enet_start();
+#endif
 
     return hal.version == 10;
 }

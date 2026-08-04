@@ -4,3 +4,9 @@
 [submodule "src/tinyusb"]
 	path = src/tinyusb
 	url = https://github.com/hathach/tinyusb
+[submodule "src/networking"]
+	path = src/networking
+	url = https://github.com/grblHAL/Plugin_networking
+[submodule "src/lwip"]
+	path = src/lwip
+	url = https://github.com/lwip-tcpip/lwip

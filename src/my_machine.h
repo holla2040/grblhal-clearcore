@@ -28,6 +28,10 @@
 // registered as an instance. Comment out to go UART-only.
 #define USB_SERIAL_CDC 1
 
-// Plugins (all off; networking/sdcard arrive in Phases 6/7)
+// Ethernet (SAME53 GMAC + lwIP + networking plugin), telnet first
+#define ETHERNET_ENABLE 1
+#define TELNET_ENABLE 1
+
+// Plugins: sdcard arrives in Phase 7
 
 #endif
