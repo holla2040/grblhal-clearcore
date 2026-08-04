@@ -31,6 +31,7 @@
 // Ethernet (SAME53 GMAC + lwIP + networking plugin), telnet first
 #define ETHERNET_ENABLE 1
 #define TELNET_ENABLE 1
+#define WEBSOCKET_ENABLE 1
 
 // SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
 #define SDCARD_ENABLE 1

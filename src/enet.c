@@ -119,6 +119,11 @@ static void netif_status_callback (struct netif *netif)
             services.telnet = telnetd_init(network.telnet_port == 0 ? NETWORK_TELNET_PORT : network.telnet_port);
 #endif
 
+#if WEBSOCKET_ENABLE
+        if(network.services.websocket && !services.websocket)
+            services.websocket = websocketd_init(network.websocket_port == 0 ? NETWORK_WEBSOCKET_PORT : network.websocket_port);
+#endif
+
         if(!network_status.ip_aquired) {
             network_status.ip_aquired = On;
             status_event_publish((network_flags_t){ .ip_aquired = On });
@@ -162,6 +167,10 @@ static void grbl_enet_poll (void *data)
     if(network_status.link_up && services.telnet)
         telnetd_poll();
 #endif
+#if WEBSOCKET_ENABLE
+    if(network_status.link_up && services.websocket)
+        websocketd_poll();
+#endif
 }
 
 /* Slow poll: PHY link status via MDIO */
@@ -191,6 +200,8 @@ static void enet_start_now (void *data)
 
     if(network.telnet_port == 0)
         network.telnet_port = NETWORK_TELNET_PORT;
+    if(network.websocket_port == 0)
+        network.websocket_port = NETWORK_WEBSOCKET_PORT;
 
     lwip_init();
 
@@ -241,6 +252,9 @@ static const setting_detail_t ethernet_settings[] = {
     { Setting_Gateway, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
     { Setting_NetMask, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
     { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, NULL, { .reboot_required = On } },
+#if WEBSOCKET_ENABLE
+    { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, NULL, { .reboot_required = On } },
+#endif
 };
 
 static const setting_descr_t ethernet_settings_descr[] = {
