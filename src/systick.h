@@ -12,4 +12,6 @@ void systick_init(void);         /* 1 ms tick at NVIC priority 7 (lowest) */
 uint32_t millis(void);
 void delay_ms(uint32_t ms);
 
+extern void (*systick_hook)(void);  /* optional per-ms callback, ISR context */
+
 #endif /* SYSTICK_H */

@@ -16,8 +16,9 @@ No code may touch a peripheral that is not recorded here.
 | SERCOM6 (SPI master) | shiftreg.c | 32-bit shift-register chain, SCK 500 kHz | none (serviced from SysTick) | 1 |
 | pins PC05/PC06/PC07 (pmux C) | shiftreg.c | SR SCK / DATA_RET / DATA | — | 1 |
 | pins PB01, PB02 (GPIO out) | shiftreg.c | SR_ENn (active low), SR_LOAD strobe | — | 1 |
-| SERCOM7 (USART) + IRQs SERCOM7_0 (DRE), SERCOM7_2 (RXC) | uart.c | COM-0 console 115200-8N1 | 4 | 1 |
-| pins PB20, PB21 (pmux D) | uart.c | COM-0 RX (PAD1) / TX (PAD0) | — | 1 |
+| SERCOM7 (USART) + IRQs SERCOM7_0 (DRE), SERCOM7_2 (RXC) | serial.c | COM-0 grblHAL stream 115200-8N1 | 4 | 1→2 |
+| pins PB20, PB21 (pmux D) | serial.c | COM-0 RX (PAD1) / TX (PAD0) | — | 1 |
+| NVMCTRL + flash block 0x7E000–0x7FFFF (8 KB, outside linker FLASH) | driver.c | grblHAL settings NVS | — | 2 |
 
 ## Planned claims (from PLAN.md §3 — provisional until the row moves up)
 
@@ -32,7 +33,6 @@ No code may touch a peripheral that is not recorded here.
 | DPLL0 (96 MHz) + GCLK4 (48 MHz) | USB (Phase 5 — Teknic's config was removed from system_same53.c, re-add there) |
 | GMAC + PHY_INT EXTINT12 | Ethernet (Phase 6), prio 3 |
 | SERCOM4 + GCLK route | microSD SPI (Phase 7; Teknic used GCLK7 @ 10 MHz) |
-| NVMCTRL (last flash pages) | grblHAL settings NVS (Phase 2) |
 
 ## Free (verified unclaimed)
 

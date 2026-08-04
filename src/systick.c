@@ -12,6 +12,8 @@
 
 static volatile uint32_t tick_ms;
 
+void (*systick_hook)(void);     /* optional per-ms callback (grblHAL delay) */
+
 uint32_t millis(void)
 {
     return tick_ms;
@@ -27,9 +29,13 @@ void SysTick_Handler(void)
 {
     tick_ms++;
 
-    /* Phase 1 exit test: 1 Hz underglow blink — remove in Phase 2 */
+    /* ~1 Hz underglow blink: "our firmware is alive" indicator */
     if ((tick_ms & 0x1FF) == 0) {       /* every 512 ms */
         sr_toggle(SR_UNDERGLOW);
+    }
+
+    if (systick_hook) {
+        systick_hook();
     }
 
     sr_refresh();

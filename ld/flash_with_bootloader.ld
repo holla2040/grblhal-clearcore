@@ -29,7 +29,10 @@
  */
 MEMORY
 {
-  FLASH (rx) : ORIGIN = 0x00000000+0x4000, LENGTH = 0x80000-0x4000 /* First 16KB used by bootloader */
+  /* First 16KB = Teknic bootloader; last 8KB block (0x7E000) = grblHAL
+     settings NVS (see driver.c nvsWrite) — kept out of FLASH so the linker
+     can never place code there. */
+  FLASH (rx) : ORIGIN = 0x00000000+0x4000, LENGTH = 0x80000-0x4000-0x2000
   RAM (rwx) : ORIGIN = 0x20000000, LENGTH = 0x30000
 }
 
