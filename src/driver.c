@@ -425,6 +425,26 @@ static bool nvsWrite (uint8_t *source)
     return true;
 }
 
+/* --- Pin enumeration ($pins) — minimal: nothing registered yet.
+ * REQUIRED even so: the sdcard plugin calls hal.enumerate_pins
+ * unconditionally; leaving it NULL was a wild jump to address 0
+ * (bench 2026-08-04). TODO Phase 3 leftover: real pin table. --- */
+
+static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
+{
+    (void)low_level; (void)pin_info; (void)data;
+}
+
+static void registerPeriphPin (const periph_pin_t *pin)
+{
+    (void)pin;
+}
+
+static void setPeriphPinDescription (const pin_function_t function, const pin_group_t group, const char *description)
+{
+    (void)function; (void)group; (void)description;
+}
+
 /* --- Settings hooks --- */
 
 static void settings_changed (settings_t *settings, settings_changed_flags_t changed)
@@ -469,7 +489,9 @@ static bool driver_setup (settings_t *settings)
 #if SDCARD_ENABLE
     dbg_puts("setup: sd\n");
     sd_spi_init();      /* SERCOM4; no card-detect line — mount on demand */
+    dbg_puts("setup: sdcard_init\n");
     sdcard_init();
+    dbg_puts("setup: sdcard_init done\n");
 #endif
 
 #if ETHERNET_ENABLE
@@ -525,6 +547,10 @@ bool driver_init (void)
 
     hal.probe.get_state = probeGetState;
     hal.probe.configure = probeConfigure;
+
+    hal.enumerate_pins = enumeratePins;
+    hal.periph_port.register_pin = registerPeriphPin;
+    hal.periph_port.set_pin_description = setPeriphPinDescription;
 
     spindle_cc_register();
 

@@ -44,6 +44,6 @@
 #define WEBUI_ENABLE 0  /* TEMP: forces SDCARD on via driver_opts */
 
 // SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
-#define SDCARD_ENABLE 0 /* TEMP: SERCOM4 enable kills board — isolated, under investigation */
+#define SDCARD_ENABLE 1
 
 #endif

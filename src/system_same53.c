@@ -141,6 +141,15 @@ void SystemInit(void) {
                            GCLK_GENCTRL_SRC_DPLL0;
     SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL4);
 
+    // GCLK3 = 48 MHz (DPLL0/2) for SERCOM4 (microSD SPI — SERCOM core
+    // clock must be <= 100 MHz, and 48 MHz divides to an exact 400 kHz
+    // card-init clock)
+    GCLK->GENCTRL[3].reg = GCLK_GENCTRL_SRC(GCLK_GENCTRL_SRC_DPLL0_Val) |
+                           GCLK_GENCTRL_GENEN |
+                           GCLK_GENCTRL_DIV(2) |
+                           GCLK_GENCTRL_IDC;
+    SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL3);
+
     // GCLK2 = 60 MHz for the step timers (TC4/TC5/TC6) and spindle PWM
     // (TCC4). Created HERE, not in a driver init: TCC4 is soft-reset from
     // driver_init, and SWRST on a timer whose GCLK generator is not yet

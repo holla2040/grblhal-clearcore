@@ -25,6 +25,7 @@
 
 #include "clearcore.h"
 #include "sd_spi.h"
+#include "debug_uart.h"
 
 #define SD_MOSI_GRP  GRP_B      /* PB08 = SERCOM4 PAD0 */
 #define SD_MOSI_PIN  8
@@ -45,8 +46,8 @@
  * and 12 MHz (BAUD 4) are the next steps down — change SD_SPI_HZ_FAST only.
  */
 #define SD_SPI_HZ_SLOW  400000UL
-#define SD_SPI_HZ_FAST  20000000UL
-#define SD_SPI_CLK_HZ 1000000UL     /* GCLK5 for the clock-spec test */
+#define SD_SPI_HZ_FAST  12000000UL  /* conservative for the socket */
+#define SD_SPI_CLK_HZ 48000000UL    /* GCLK3 */
 #define SD_SPI_BAUD(hz) ((uint8_t)((SD_SPI_CLK_HZ / (2UL * (hz)) < 1UL) ? 0UL : (SD_SPI_CLK_HZ / (2UL * (hz)) - 1UL)))
 
 void sd_spi_cs(bool assert)
@@ -159,9 +160,7 @@ void sd_spi_init(void)
     pin_dir_out(SD_CS_GRP, SD_CS_PIN);
 
     CLOCK_ENABLE(APBDMASK, SERCOM4_);
-    /* TEST: 120 MHz GCLK0 exceeds the SERCOM 100 MHz core-clock spec —
-       suspected cause of the enable-write CPU stall. GCLK5 = 1 MHz. */
-    SET_CLOCK_SOURCE(SERCOM4_GCLK_ID_CORE, 5);
+    SET_CLOCK_SOURCE(SERCOM4_GCLK_ID_CORE, 3);      /* GCLK3 = 48 MHz */
 
     /* MISO needs the input buffer on, plus a pull-up so an empty socket
        reads 0xFF (card absent) instead of a floating level */
@@ -185,6 +184,17 @@ void sd_spi_init(void)
 
     spi->BAUD.reg = SD_SPI_BAUD(SD_SPI_HZ_SLOW);
 
-    spi->CTRLA.bit.ENABLE = 1;
+    /* SERCOM4 enable-stall diagnostics (bench 2026-08-04) */
+    dbg_puts("sd4 apbd=");  dbg_hex32(MCLK->APBDMASK.reg);
+    dbg_puts(" pch=");      dbg_hex32(GCLK->PCHCTRL[SERCOM4_GCLK_ID_CORE].reg);
+    dbg_puts(" pacD=");     dbg_hex32(PAC->STATUSD.reg);
+    dbg_puts("\nsd4 rd ctrla\n");
+    uint32_t a = spi->CTRLA.reg;
+    dbg_puts("sd4 ctrla="); dbg_hex32(a);
+    dbg_puts(" sync=");     dbg_hex32(spi->SYNCBUSY.reg);
+    dbg_puts("\nsd4 wr enable\n");
+    spi->CTRLA.reg = a | SERCOM_SPI_CTRLA_ENABLE;
+    dbg_puts("sd4 wr done\n");
     SYNCBUSY_WAIT(spi, SERCOM_SPI_SYNCBUSY_ENABLE);
+    dbg_puts("sd4 synced\n");
 }
