@@ -12,6 +12,11 @@
 
 #define N_AXIS 4
 
-// Plugins (all off in Phase 2; networking/sdcard arrive in Phases 6/7)
+// HLFB servo-fault monitor: enable (set to 1) ONLY after bench-verifying
+// HLFB polarity with a configured ClearPath (MSP "Servo On" HLFB mode) —
+// otherwise unconfigured motors alarm immediately.
+#define HLFB_MONITOR_ENABLE 0
+
+// Plugins (all off; networking/sdcard arrive in Phases 6/7)
 
 #endif
