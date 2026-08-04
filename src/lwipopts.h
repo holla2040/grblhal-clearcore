@@ -49,7 +49,13 @@
 #define TCP_QUEUE_OOSEQ            0
 #define LWIP_TCP_KEEPALIVE         1
 
-#define LWIP_HTTPD                 0
+/* Options for the networking plugin's VFS-based httpd */
+#define LWIP_HTTPD_DYNAMIC_HEADERS      1
+#define LWIP_HTTPD_DYNAMIC_FILE_READ    1
+#define LWIP_HTTPD_SUPPORT_V09          0
+#define LWIP_HTTPD_SUPPORT_11_KEEPALIVE 1
+#define LWIP_HTTPD_SUPPORT_POST         1
+
 #define LWIP_NETIF_API             0
 
 #define LWIP_PLATFORM_BYTESWAP     0

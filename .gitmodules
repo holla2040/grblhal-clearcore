@@ -13,3 +13,6 @@
 [submodule "src/sdcard"]
 	path = src/sdcard
 	url = https://github.com/grblHAL/Plugin_SD_card
+[submodule "src/webui"]
+	path = src/webui
+	url = https://github.com/grblHAL/Plugin_WebUI

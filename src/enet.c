@@ -124,6 +124,11 @@ static void netif_status_callback (struct netif *netif)
             services.websocket = websocketd_init(network.websocket_port == 0 ? NETWORK_WEBSOCKET_PORT : network.websocket_port);
 #endif
 
+#if HTTP_ENABLE
+        if(network.services.http && !services.http)
+            services.http = httpd_init(network.http_port == 0 ? NETWORK_HTTP_PORT : network.http_port);
+#endif
+
         if(!network_status.ip_aquired) {
             network_status.ip_aquired = On;
             status_event_publish((network_flags_t){ .ip_aquired = On });
@@ -202,6 +207,8 @@ static void enet_start_now (void *data)
         network.telnet_port = NETWORK_TELNET_PORT;
     if(network.websocket_port == 0)
         network.websocket_port = NETWORK_WEBSOCKET_PORT;
+    if(network.http_port == 0)
+        network.http_port = NETWORK_HTTP_PORT;
 
     lwip_init();
 
@@ -254,6 +261,9 @@ static const setting_detail_t ethernet_settings[] = {
     { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, NULL, { .reboot_required = On } },
 #if WEBSOCKET_ENABLE
     { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, NULL, { .reboot_required = On } },
+#endif
+#if HTTP_ENABLE
+    { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.http_port, NULL, NULL, { .reboot_required = On } },
 #endif
 };
 

@@ -537,5 +537,10 @@ bool driver_init (void)
     grbl_enet_start();
 #endif
 
+    /* Core-provided plugin bootstrap — initializes every enabled plugin
+       (webui, my_plugin, ...). Org-driver convention: included INSIDE
+       driver_init, at the end. */
+#include "grbl/plugins_init.h"
+
     return hal.version == 10;
 }

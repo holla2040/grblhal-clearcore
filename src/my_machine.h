@@ -4,6 +4,10 @@
  * `-include src/my_machine.h` in platformio.ini, so core and driver always
  * agree on N_AXIS and option flags. Do not include it manually.
  *
+ * IMPORTANT: SCons does NOT dependency-scan force-included headers — after
+ * changing anything here, run `pio run -t clean` before building, or stale
+ * objects will keep the old flags.
+ *
  * MIT License, Copyright (c) 2026 Craig Hollabaugh
  */
 
@@ -32,6 +36,8 @@
 #define ETHERNET_ENABLE 1
 #define TELNET_ENABLE 1
 #define WEBSOCKET_ENABLE 1
+#define HTTP_ENABLE 1
+#define WEBUI_ENABLE 1          // assets served from SD /www (ESP3D-WebUI build)
 
 // SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
 #define SDCARD_ENABLE 1
