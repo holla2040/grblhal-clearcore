@@ -1,3 +1,6 @@
 [submodule "src/grbl"]
 	path = src/grbl
 	url = https://github.com/grblHAL/core
+[submodule "src/tinyusb"]
+	path = src/tinyusb
+	url = https://github.com/hathach/tinyusb

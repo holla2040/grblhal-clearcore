@@ -34,6 +34,9 @@ No code may touch a peripheral that is not recorded here.
 | pins PA00/PA01/PA06/PA07 (GPIO out, idle HIGH) | driver.c/spindle.c | mist IO-0, spindle-en IO-1, spindle-dir IO-2, flood IO-3 (inverted: LOW=on) | — | 4 |
 | TCC4 (NPWM, WO0 inverted) + pin PB14 (pmux F) | spindle.c | spindle PWM → DRV8844 IN3 (IO-4) | none | 4 |
 | pin PB16 (GPIO out, idle LOW) | spindle.c | DRV8844 EN3 — active high, gates IO-4 | — | 4 |
+| DPLL0 (96 MHz, ref GCLK5) + GCLK4 (48 MHz) | system_same53.c | USB clock | — | 5 |
+| USB peripheral + IRQs USB_OTHER/SOF/TRCPT0/TRCPT1 | usb_serial.c (TinyUSB) | CDC-ACM stream | 4 | 5 |
+| pins PA24, PA25 (pmux H) | usb_serial.c | USB DM/DP | — | 5 |
 
 ## Planned claims (from PLAN.md §3 — provisional until the row moves up)
 
@@ -41,7 +44,6 @@ No code may touch a peripheral that is not recorded here.
 |---|---|
 | DAC (Aout00 PA02) + SR bit 20 wire-LOW | optional 4-20 mA analog spindle on IO-0 (would displace mist) |
 | pin PB00 (input) | DRV8844 FAULTn monitor for IO-4/IO-5 (active low) |
-| DPLL0 (96 MHz) + GCLK4 (48 MHz) | USB (Phase 5 — Teknic's config was removed from system_same53.c, re-add there) |
 | GMAC + PHY_INT EXTINT12 | Ethernet (Phase 6), prio 3 |
 | SERCOM4 + GCLK route | microSD SPI (Phase 7; Teknic used GCLK7 @ 10 MHz) |
 

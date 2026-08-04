@@ -20,6 +20,10 @@
 #include "spindle_cc.h"
 #include "boards/clearcore_map.h"
 
+#if USB_SERIAL_CDC
+#include "usb_serial.h"
+#endif
+
 #include "grbl/grbllib.h"
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
@@ -55,7 +59,10 @@ static void driver_delay_ms (uint32_t ms, delay_callback_ptr callback)
     if(ms) {
         grbl_delay.ms = ms;
         if(!(grbl_delay.callback = callback)) {
-            while(grbl_delay.ms);
+            while(grbl_delay.ms) {
+                if(grbl.on_execute_delay)
+                    grbl.on_execute_delay(state_get());
+            }
         }
     } else {
         if(grbl_delay.ms) {
@@ -237,6 +244,25 @@ static void inputs_init (void)
  * Compile-time gated until HLFB polarity is bench-verified with a
  * configured ClearPath (MSP "Servo On" HLFB mode). --- */
 
+#if USB_SERIAL_CDC
+
+static on_execute_realtime_ptr on_execute_realtime_usb_prev;
+static on_execute_realtime_ptr on_execute_delay_usb_prev;
+
+static void usb_rt_poll (sys_state_t state)
+{
+    usb_poll();
+    on_execute_realtime_usb_prev(state);
+}
+
+static void usb_delay_poll (sys_state_t state)
+{
+    usb_poll();
+    on_execute_delay_usb_prev(state);
+}
+
+#endif /* USB_SERIAL_CDC */
+
 #if HLFB_MONITOR_ENABLE
 
 static on_execute_realtime_ptr on_execute_realtime_prev;
@@ -402,6 +428,13 @@ static bool driver_setup (settings_t *settings)
     inputs_init();          /* EIC limits/control + probe/HLFB inputs */
     outputs_init();         /* coolant pins (spindle pins init in spindle_cc_register) */
 
+#if USB_SERIAL_CDC
+    on_execute_realtime_usb_prev = grbl.on_execute_realtime;
+    grbl.on_execute_realtime = usb_rt_poll;
+    on_execute_delay_usb_prev = grbl.on_execute_delay;
+    grbl.on_execute_delay = usb_delay_poll;
+#endif
+
 #if HLFB_MONITOR_ENABLE
     on_execute_realtime_prev = grbl.on_execute_realtime;
     grbl.on_execute_realtime = hlfb_poll;
@@ -474,8 +507,13 @@ bool driver_init (void)
 
     serialRegisterStreams();
 
+#if USB_SERIAL_CDC
+    if(!stream_connect(usb_serialInit()))
+        while(true);    /* cannot boot without a communication channel */
+#else
     if(!stream_connect_instance(SERIAL_STREAM, BAUD_RATE))
         while(true);    /* cannot boot without a communication channel */
+#endif
 
     hal.nvs.type = NVS_Flash;
     hal.nvs.memcpy_from_flash = nvsRead;

@@ -24,6 +24,10 @@
 #define DEFAULT_CONTROL_SIGNALS_INVERT_MASK SIGNALS_BITMASK
 #define DEFAULT_PROBE_SIGNAL_INVERT On
 
+// USB CDC console (TinyUSB): primary stream when connected, UART stays
+// registered as an instance. Comment out to go UART-only.
+#define USB_SERIAL_CDC 1
+
 // Plugins (all off; networking/sdcard arrive in Phases 6/7)
 
 #endif

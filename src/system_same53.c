@@ -50,8 +50,12 @@
 #define __CLEARCORE_OSC_HZ      (25000000)              // 25 MHz
 // GCLK0 FREQ
 #define __CLEARCORE_GCLK0_HZ    __CLEARCORE_CLOCK_HZ
+// GCLK4 FREQ (USB)
+#define __CLEARCORE_GCLK4_HZ    (48000000)              // 48 MHz
 // GCLK5 FREQ (DPLL reference + shift-register SERCOM6 core clock)
 #define __CLEARCORE_GCLK5_HZ    (1000000)               // 1 MHz
+// DPLL0 FREQ (USB source)
+#define __CLEARCORE_DPLL0_HZ    (96000000)              // 96 MHz
 // DPLL1 FREQ
 #define __CLEARCORE_DPLL1_HZ    (120000000)             // 120 MHz
 
@@ -113,14 +117,29 @@ void SystemInit(void) {
     // Clocks running and locked, switch core clock to 120MHz
     MCLK->CPUDIV.reg = MCLK_CPUDIV_DIV_DIV1;
 
+    // DPLL0 @ 96 MHz from GCLK5, then GCLK4 = 48 MHz for USB (Phase 5 claim;
+    // this is Teknic's original configuration, restored)
+    SET_CLOCK_SOURCE(OSCCTRL_GCLK_ID_FDPLL0, 5);
+    OSCCTRL->Dpll[0].DPLLRATIO.reg =
+        OSCCTRL_DPLLRATIO_LDR(__CLEARCORE_DPLL0_HZ / __CLEARCORE_GCLK5_HZ - 1);
+    OSCCTRL->Dpll[0].DPLLCTRLB.reg = OSCCTRL_DPLLCTRLB_LTIME_DEFAULT |
+                                     OSCCTRL_DPLLCTRLB_REFCLK_GCLK |
+                                     OSCCTRL_DPLLCTRLB_WUF;
+    OSCCTRL->Dpll[0].DPLLCTRLA.reg = OSCCTRL_DPLLCTRLA_ENABLE;
+
     // Shut down the DFLL48M we booted on — nothing uses it now.
-    // (DPLL0/GCLK4 for 48 MHz USB were configured here by Teknic; removed
-    // until Phase 5 claims them — see RESOURCES.md.)
     GCLK->PCHCTRL[OSCCTRL_GCLK_ID_DFLL48].bit.CHEN = 0;
     while (GCLK->PCHCTRL[OSCCTRL_GCLK_ID_DFLL48].bit.CHEN) {
         continue;
     }
     OSCCTRL->DFLLCTRLA.reg = 0;
+
+    // GCLK4 = 48 MHz for USB
+    GCLK->GENCTRL[4].reg = GCLK_GENCTRL_GENEN |
+                           GCLK_GENCTRL_DIV(__CLEARCORE_DPLL0_HZ /
+                                            __CLEARCORE_GCLK4_HZ) |
+                           GCLK_GENCTRL_SRC_DPLL0;
+    SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL4);
 
     // Enable the cache controller
     CMCC->CTRL.reg = CMCC_CTRL_CEN;
