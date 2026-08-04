@@ -47,6 +47,7 @@
 
 #include "gmac.h"
 #include "ethernetif.h"
+#include "debug_uart.h"
 
 #define LINK_CHECK_INTERVAL 250
 
@@ -114,6 +115,10 @@ static void netif_status_callback (struct netif *netif)
 
         ip4addr_ntoa_r(netif_ip_addr4(netif), IPAddress, IP4ADDR_STRLEN_MAX);
 
+        dbg_puts("enet: ip ");
+        dbg_puts(IPAddress);
+        dbg_puts("\n");
+
 #if TELNET_ENABLE
         if(network.services.telnet && !services.telnet)
             services.telnet = telnetd_init(network.telnet_port == 0 ? NETWORK_TELNET_PORT : network.telnet_port);
@@ -143,6 +148,8 @@ static void link_status_callback (struct netif *netif)
     if(isLinkUp != network_status.link_up) {
 
         network_flags_t changed = { .link_up = On };
+
+        dbg_puts(isLinkUp ? "enet: link up\n" : "enet: link down\n");
 
         if((network_status.link_up = isLinkUp)) {
             if(network.ip_mode == IpMode_DHCP && !dhcp_running)
@@ -383,7 +390,10 @@ static setting_details_t setting_details = {
     .restore = ethernet_settings_restore
 };
 
-bool grbl_enet_start (void)
+/* Called from driver_init: claim the NVS driver area and register settings
+   BEFORE the core switches NVS to its RAM-emulated mode (nvs_alloc refuses
+   allocations after that switch — learned on the bench 2026-08-04). */
+bool grbl_enet_init (void)
 {
     if((nvs_address = nvs_alloc(sizeof(network_settings_t)))) {
 
@@ -394,11 +404,30 @@ bool grbl_enet_start (void)
         allowed_services.mask = networking_get_services_list((char *)netservices).mask;
 
         settings_register(&setting_details);
+    } else
+        dbg_puts("enet: nvs_alloc FAILED\n");
 
-        /* GMAC + PHY up-front so the MAC is known; netif comes up via task */
+    return nvs_address != 0;
+}
+
+/* Called from driver_setup: bring up the hardware and queue the netif. */
+bool grbl_enet_start (void)
+{
+    if(nvs_address != 0) {
+
         uint8_t mac[6];
         gmac_init(mac);
         ethernetif_set_mac(mac);
+
+        dbg_puts("enet: mac ");
+        for(int i = 0; i < 6; i++) {
+            static const char h[] = "0123456789ABCDEF";
+            dbg_putc(h[mac[i] >> 4]);
+            dbg_putc(h[mac[i] & 0xF]);
+            if(i < 5)
+                dbg_putc(':');
+        }
+        dbg_puts(gmac_phy_init_failed() ? " (PHY INIT FAILED)\n" : "\n");
 
         task_run_on_startup(enet_start_now, NULL);
     }

@@ -370,10 +370,12 @@ static uint_fast16_t valueSetAtomic (volatile uint_fast16_t *ptr, uint_fast16_t 
  */
 
 #define NVS_FLASH_ADDR 0x7E000UL
+#define NVS_AREA_SIZE  4096UL   /* NVS_SIZE_MAX: core settings + driver areas
+                                   (networking etc.); 8 pages of the 8 KB block */
 
 static bool nvsRead (uint8_t *dest)
 {
-    memcpy(dest, (void *)NVS_FLASH_ADDR, NVS_SIZE);
+    memcpy(dest, (void *)NVS_FLASH_ADDR, NVS_AREA_SIZE);
 
     return true;
 }
@@ -383,7 +385,7 @@ static bool nvsWrite (uint8_t *source)
 
     uint32_t *src = (uint32_t *)source;
     uint32_t page_addr = NVS_FLASH_ADDR;
-    uint_fast8_t pages = NVS_SIZE / NVMCTRL_PAGE_SIZE;
+    uint_fast8_t pages = NVS_AREA_SIZE / NVMCTRL_PAGE_SIZE;
 
     while(!NVMCTRL->STATUS.bit.READY);
 
@@ -559,8 +561,13 @@ bool driver_init (void)
 #endif
 
     hal.nvs.type = NVS_Flash;
+    hal.nvs.size_max = NVS_AREA_SIZE;   /* room for driver areas (nvs_alloc) */
     hal.nvs.memcpy_from_flash = nvsRead;
     hal.nvs.memcpy_to_flash = nvsWrite;
+
+#if ETHERNET_ENABLE
+    grbl_enet_init();   /* NVS area + settings — must precede nvs_buffer_init */
+#endif
 
     /* Core-provided plugin bootstrap — initializes every enabled plugin
        (webui, my_plugin, ...). Org-driver convention: included INSIDE

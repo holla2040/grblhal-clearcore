@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 
-bool grbl_enet_start (void);    /* register settings + bring up when configured */
+bool grbl_enet_init (void);     /* driver_init: NVS area + settings registration */
+bool grbl_enet_start (void);    /* driver_setup: hardware + netif bring-up */
 
 #endif
