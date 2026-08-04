@@ -7,26 +7,36 @@ No code may touch a peripheral that is not recorded here.
 
 | Resource | Claimed by | Purpose | NVIC prio | Phase |
 |---|---|---|---|---|
-| *(none claimed yet)* | | | | |
+| XOSC1 (25 MHz MEMS osc) | system_same53.c | root oscillator | — | 1 |
+| DPLL1 (120 MHz, ref GCLK5) | system_same53.c | CPU clock PLL | — | 1 |
+| GCLK0 = 120 MHz (DPLL1) | system_same53.c | CPU + SERCOM7 core | — | 1 |
+| GCLK5 = 1 MHz (XOSC1/25) | system_same53.c | DPLL0/1 reference + SERCOM6 core | — | 1 |
+| CMCC (flash cache) | system_same53.c | enabled | — | 1 |
+| SysTick (120 MHz/1000) | systick.c | 1 ms tick, elapsed-ms, SR refresh dispatch | 7 | 1 |
+| SERCOM6 (SPI master) | shiftreg.c | 32-bit shift-register chain, SCK 500 kHz | none (serviced from SysTick) | 1 |
+| pins PC05/PC06/PC07 (pmux C) | shiftreg.c | SR SCK / DATA_RET / DATA | — | 1 |
+| pins PB01, PB02 (GPIO out) | shiftreg.c | SR_ENn (active low), SR_LOAD strobe | — | 1 |
+| SERCOM7 (USART) + IRQs SERCOM7_0 (DRE), SERCOM7_2 (RXC) | uart.c | COM-0 console 115200-8N1 | 4 | 1 |
+| pins PB20, PB21 (pmux D) | uart.c | COM-0 RX (PAD1) / TX (PAD0) | — | 1 |
 
 ## Planned claims (from PLAN.md §3 — provisional until the row moves up)
 
 | Resource | Purpose |
 |---|---|
-| TC4+TC5 (chained 32-bit) | stepper/segment timer, prio 0 |
-| TC6 | step-pulse one-shot, prio 0 |
-| TC7 | debounce |
-| free TCC | spindle PWM |
-| SysTick | 1 ms housekeeping tick, prio 7 |
+| TC4+TC5 (chained 32-bit) | stepper/segment timer, prio 0 (Phase 3) |
+| TC6 | step-pulse one-shot, prio 0 (Phase 3) |
+| pins PA27, PB23 (GPIO out, LOW) | step-path '125 buffer enables — MUST be driven low or steps are blocked (Phase 3) |
+| TC7 | debounce (Phase 3) |
+| EIC + lines: DI-6/7/8+A-9 limits, A-10..12 control | prio 2 (Phase 3) |
+| free TCC | spindle PWM (Phase 4) |
+| DPLL0 (96 MHz) + GCLK4 (48 MHz) | USB (Phase 5 — Teknic's config was removed from system_same53.c, re-add there) |
+| GMAC + PHY_INT EXTINT12 | Ethernet (Phase 6), prio 3 |
+| SERCOM4 + GCLK route | microSD SPI (Phase 7; Teknic used GCLK7 @ 10 MHz) |
+| NVMCTRL (last flash pages) | grblHAL settings NVS (Phase 2) |
 
-## Inherited state to re-audit in Phase 1
+## Free (verified unclaimed)
 
-The vendored `src/system_same53.c` (Teknic tag 1.7.4, content unchanged) still
-configures Teknic's clock tree and bus clocks: XOSC1 25 MHz, DPLL0 96 MHz,
-DPLL1 120 MHz, GCLK0 (120 MHz cpu), GCLK1 (500 kHz), GCLK4 (48 MHz USB),
-GCLK5 (1 MHz PLL ref), GCLK6 (2.048 MHz, routed to EIC/TC0/TC4/TC6),
-GCLK7 (10 MHz SPI), and enables bus clocks for SERCOM0/2/4/7, TC0/3/4/5/6,
-EIC, EVSYS, GMAC, ADC1, CMCC cache, FPU. **None of these are claims** — the
-Phase 1 clock-tree task trims this to what we use and records real claims
-above (note: GCLK6→TC4/TC6 routing conflicts with our stepper-timer plan and
-must be redone).
+TC0–TC3, TCC0–TCC4, all DMA channels, all EVSYS channels, ADC0/ADC1, DAC,
+SERCOM0 (COM-1), SERCOM2 (XBee header), GCLK1/2/3/6/7, RTC, WDT, PDEC, QSPI.
+GCLK6→TC4/TC6 and GCLK1 routings from Teknic's clock tree were removed in the
+Phase 1 trim — TC4/TC6 clock sources are unrouted until Phase 3 claims them.

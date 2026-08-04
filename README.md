@@ -55,6 +55,32 @@ make restore-bootloader    # openocd program bootloader-16k.bin verify 0x0
 The double-tap-reset bootloader entry and USB enumeration should work again
 afterwards.
 
+## COM-0 console wiring (RJ-45)
+
+COM-0 is the firmware console: 115200-8N1, **5 V TTL** — use a 5 V-tolerant
+USB-UART adapter. Pinout (schematic page 9, netlist-verified; COM-1 is
+identical):
+
+| RJ-45 pin | Signal | Direction |
+|---|---|---|
+| 1 | RTS | out of ClearCore (unused for now) |
+| 2 | +5 V | power out |
+| 3 | CTS | into ClearCore (unused for now) |
+| 4 | GND | — |
+| 5 | TX | out of ClearCore |
+| 6 | +5 V | power out |
+| 7 | GND | — |
+| 8 | RX | into ClearCore |
+
+Minimal hookup: adapter RX → pin 5, adapter TX → pin 8, GND → pin 4 or 7.
+Signals are non-inverted TTL, idle high. Board pull-ups/downs default the
+port to TTL UART mode even before firmware runs; `sr_init()` keeps it there
+via the shift-register mode bits.
+
+(The schematic's own page-9 note claims the PoE-protection GND short is on
+pins "4 and 8" — the netlist says pins 4 and 7. Pin 8 is RX. Trust the
+netlist.)
+
 ## Debug
 
 Atmel-ICE on SWD. `pio debug`, or manually: `make serve` (OpenOCD gdb

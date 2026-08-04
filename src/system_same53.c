@@ -29,38 +29,15 @@
 /*
  * Adapted from Teknic-Inc/ClearCore-library (tag 1.7.4, commit 4bf5ca6c)
  * libClearCore/src/system_same53.c for grblhal-clearcore.
- * Changes: inlined the three clock macros from libClearCore/inc/SysUtils.h
- * (SYNCBUSY_WAIT, CLOCK_ENABLE, SET_CLOCK_SOURCE) so the file stands alone
- * with no library headers. Clock tree content unchanged; Phase 1 will trim
- * the peripheral clock enables to what this firmware actually uses.
- * Include <sam.h> instead of <same53.h> (the vendored SAME53_DFP 3.10.248
- * ships sam.h as its dispatch header).
+ * Changes (Phase 1 trim, 2026-08-04): clock macros live in clearcore.h;
+ * kept only the core clock path — XOSC1 25 MHz → GCLK5 1 MHz → DPLL1
+ * 120 MHz → GCLK0 (cpu), plus DFLL48 shutdown, cache and FPU enable.
+ * Removed vs. Teknic: GCLK1 (their step-mask clock), DPLL0/GCLK4 (USB —
+ * returns in Phase 5), GCLK6/GCLK7 and all peripheral bus-clock enables
+ * and TC/EIC clock routing (each driver claims its own; see RESOURCES.md).
  */
 
-#include <sam.h>
-
-/* Wait for the synchronization bits (BITMASK) of the peripheral (PER). */
-#define SYNCBUSY_WAIT(PER, BITMASK)                                            \
-while ((PER)->SYNCBUSY.reg & (BITMASK)) {                                      \
-    continue;                                                                  \
-}
-
-/* Enable the clock specified by the bit on the given peripheral bus. */
-#define CLOCK_ENABLE(BUS, BIT)                                                 \
-MCLK->BUS.bit.BIT = 1
-
-/* Set the peripheral's clock source (SAMD5x/E5x datasheet 14.6.3.1/14.6.3.3):
-   disable channel, wait for CHEN=0, write GEN, re-enable, wait for sync. */
-#define SET_CLOCK_SOURCE(PER_GCLK_ID, GCLK_INDEX)                              \
-GCLK->PCHCTRL[(PER_GCLK_ID)].bit.CHEN = 0;                                     \
-while (GCLK->PCHCTRL[(PER_GCLK_ID)].bit.CHEN) {                                \
-    continue;                                                                  \
-}                                                                              \
-GCLK->PCHCTRL[(PER_GCLK_ID)].bit.GEN = GCLK_PCHCTRL_GEN((GCLK_INDEX));         \
-GCLK->PCHCTRL[(PER_GCLK_ID)].bit.CHEN = 1;                                     \
-while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_GENCTRL((GCLK_INDEX))) {             \
-    continue;                                                                  \
-}
+#include "clearcore.h"
 
 /**
  * Initial system clock frequency. The System RC Oscillator (RCSYS) provides
@@ -73,18 +50,8 @@ while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_GENCTRL((GCLK_INDEX))) {             \
 #define __CLEARCORE_OSC_HZ      (25000000)              // 25 MHz
 // GCLK0 FREQ
 #define __CLEARCORE_GCLK0_HZ    __CLEARCORE_CLOCK_HZ
-// GCLK1 FREQ
-#define __CLEARCORE_GCLK1_HZ    (500000)                // 500 kHz
-// GCLK4 FREQ
-#define __CLEARCORE_GCLK4_HZ    (48000000)              // 48 MHz
-// GCLK5 FREQ
+// GCLK5 FREQ (DPLL reference + shift-register SERCOM6 core clock)
 #define __CLEARCORE_GCLK5_HZ    (1000000)               // 1 MHz
-// GCLK6 FREQ - set for 500Hz PWM with / 16; HLFB / 31.25Hz max period
-#define __CLEARCORE_GCLK6_HZ    (128000*16)             // 2.048 MHz
-// GCLK7 FREQ
-#define __CLEARCORE_GCLK7_HZ    (10000000)              // 10 MHz
-// DPLL0 FREQ
-#define __CLEARCORE_DPLL0_HZ    (96000000)              // 96 MHz
 // DPLL1 FREQ
 #define __CLEARCORE_DPLL1_HZ    (120000000)             // 120 MHz
 
@@ -146,101 +113,20 @@ void SystemInit(void) {
     // Clocks running and locked, switch core clock to 120MHz
     MCLK->CPUDIV.reg = MCLK_CPUDIV_DIV_DIV1;
 
-    // Use 96MHz clock for USB with / 2 on GCLK4 for 48MHz
-    // using GCLK5 as reference.
-    SET_CLOCK_SOURCE(OSCCTRL_GCLK_ID_FDPLL0, 5);
-    // set the integer part of the frequency multiplier (loop divider ratio)
-    OSCCTRL->Dpll[0].DPLLRATIO.reg =
-        OSCCTRL_DPLLRATIO_LDR(__CLEARCORE_DPLL0_HZ / __CLEARCORE_GCLK5_HZ - 1);
-        
-    // Set the lock timeout value to Default (none, automatic lock)
-    // Set the dedicated GCLK reference
-    // Set Wake Up Fast
-    OSCCTRL->Dpll[0].DPLLCTRLB.reg = OSCCTRL_DPLLCTRLB_LTIME_DEFAULT |
-                                     OSCCTRL_DPLLCTRLB_REFCLK_GCLK |
-                                     OSCCTRL_DPLLCTRLB_WUF;
-    // enable the DPLL
-    OSCCTRL->Dpll[0].DPLLCTRLA.reg = OSCCTRL_DPLLCTRLA_ENABLE;
-
-    // Disable DFLL48M since we are going to use DPLL to generate 48MHz.
+    // Shut down the DFLL48M we booted on — nothing uses it now.
+    // (DPLL0/GCLK4 for 48 MHz USB were configured here by Teknic; removed
+    // until Phase 5 claims them — see RESOURCES.md.)
     GCLK->PCHCTRL[OSCCTRL_GCLK_ID_DFLL48].bit.CHEN = 0;
     while (GCLK->PCHCTRL[OSCCTRL_GCLK_ID_DFLL48].bit.CHEN) {
         continue;
     }
-
     OSCCTRL->DFLLCTRLA.reg = 0;
-    // Setup GCLK4 to output 48 MHz for USB
-    GCLK->GENCTRL[4].reg = GCLK_GENCTRL_GENEN |
-                           GCLK_GENCTRL_DIV(__CLEARCORE_DPLL0_HZ /
-                                            __CLEARCORE_GCLK4_HZ) |
-                           GCLK_GENCTRL_SRC_DPLL0;
-    // Wait for clock domain sync
-    SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL4);
-
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // Setup clock sources from oscillators or other sources
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-    // Create 500kHz clock from GCLK1 to act as source for S&D mask
-    GCLK->GENCTRL[1].reg = GCLK_GENCTRL_SRC(GCLK_GENCTRL_SRC_XOSC1_Val) |
-                           GCLK_GENCTRL_GENEN |
-                           GCLK_GENCTRL_DIV(__CLEARCORE_OSC_HZ /
-                                            __CLEARCORE_GCLK1_HZ) |
-                           GCLK_GENCTRL_IDC |
-                           GCLK_GENCTRL_OE;
-
-    // Make sure PORT module is powered up and clocked
-    // Should be on already: CLOCK_ENABLE(APBBMASK, PORT_);
-    // Make sure SERCOMS are powered up and clocked
-    CLOCK_ENABLE(APBAMASK, SERCOM0_);
-    CLOCK_ENABLE(APBBMASK, TC3_); // HLFB(2)
-    CLOCK_ENABLE(APBAMASK, EIC_);
-
-    CLOCK_ENABLE(APBBMASK, EVSYS_);
-    CLOCK_ENABLE(APBBMASK, SERCOM2_);          // XBee
-
-    CLOCK_ENABLE(APBCMASK, TC4_); // HLFB(0)
-
-    CLOCK_ENABLE(AHBMASK, GMAC_);
-    CLOCK_ENABLE(APBCMASK, GMAC_); // Ethernet
-
-    CLOCK_ENABLE(APBDMASK, SERCOM4_);          // SD
-    CLOCK_ENABLE(APBDMASK, SERCOM7_);
-    CLOCK_ENABLE(APBDMASK, ADC1_);
-    CLOCK_ENABLE(APBCMASK, TC5_); // HLFB(1)
-    CLOCK_ENABLE(APBAMASK, TC0_); // HLFB(3)
-
-    CLOCK_ENABLE(APBDMASK, TC6_); // HBridge PWM output
 
     // Enable the cache controller
     CMCC->CTRL.reg = CMCC_CTRL_CEN;
     // Enable the FPU
     SCB->CPACR = 0xFU << 20;
 
-    // set up GCLK6 for OUT TCx and HLFB TCx
-    GCLK->GENCTRL[6].reg = GCLK_GENCTRL_GENEN |
-                           GCLK_GENCTRL_SRC(GCLK_GENCTRL_SRC_DPLL1_Val) |
-                           GCLK_GENCTRL_DIV(__CLEARCORE_DPLL1_HZ /
-                                            __CLEARCORE_GCLK6_HZ);
-    SYNCBUSY_WAIT(GCLK, GCLK_SYNCBUSY_GENCTRL6);
-
-    // set up GCLK7 for SPI sercom clocking
-    GCLK->GENCTRL[7].reg = GCLK_GENCTRL_GENEN |
-                           GCLK_GENCTRL_SRC(GCLK_GENCTRL_SRC_DPLL1_Val) |
-                           GCLK_GENCTRL_DIV(__CLEARCORE_DPLL1_HZ /
-                                            __CLEARCORE_GCLK7_HZ);
-
-    // CPU Clock @ 120MHz on GCLK(0), GCLK(6)=2.048MHz
-    SET_CLOCK_SOURCE(EIC_GCLK_ID, 6);
-    // HLFB timers
-    SET_CLOCK_SOURCE(TC0_GCLK_ID, 6);
-    SET_CLOCK_SOURCE(TC4_GCLK_ID, 6);
-    SET_CLOCK_SOURCE(TC6_GCLK_ID, 6);
-    
-    // NOTE: TC7 and TC6 share same clock source
-    // SET_CLOCK_SOURCE(TC7_GCLK_ID, 6);
-
-    // ZL: Is this still needed?
     while (GCLK->SYNCBUSY.reg) {
         continue;
     }
@@ -258,21 +144,4 @@ void SystemCoreClockUpdate(void) {
     return;
 }
 
-/**
- * Update GClk frequency
- *
- * @brief  Updates the divisor on the specified GClk to
- *         generate the requested frequency
- */
-void GClkFreqUpdate(uint8_t gclkIndex, uint32_t freqReq) {
-    // This adjustment is only supported for GClks that use XOSC1 as the src
-    if (GCLK->GENCTRL[gclkIndex].bit.SRC != GCLK_GENCTRL_SRC_XOSC1_Val) {
-        return;
-    }
-
-    // Configure the clock divisor for the requested frequency
-    GCLK->GENCTRL[gclkIndex].bit.DIV = __CLEARCORE_OSC_HZ / freqReq;
-    while (GCLK->SYNCBUSY.vec.GENCTRL & (1 << gclkIndex)) {
-        continue;
-    }
-}
+/* Teknic's GClkFreqUpdate() (XBee baud adjust) removed — unused here. */
