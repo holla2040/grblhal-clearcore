@@ -6,6 +6,25 @@ ClearCore controller (ATSAME53N19A, Cortex-M4F @ 120 MHz): a standalone
 step/direction. No RTOS, no Arduino, and **no Teknic library code executes
 in this firmware** — see `PLAN.md` for the architecture and project plan.
 
+## Status
+
+All phases (0–7) are desk-complete and building — 313 KB flash / 75 KB
+RAM. **Bench validation pending** (checklist in PLAN.md's Session Log).
+
+| Subsystem | State |
+|---|---|
+| 4-axis step engine (TC4+TC5 + TC6, prio 0) | built, awaiting scope |
+| Homing/limits/control (EIC prio 2, hw debounce) + polled probe | built |
+| Motor enables + LEDs + port modes (shift register) | built |
+| PWM spindle (DRV8844/IO-4) + coolant (IO-3/IO-0) | built |
+| Settings NVS (last 8 KB flash block) | built |
+| UART console (COM-0) + USB CDC (TinyUSB) | built |
+| Ethernet: telnet/websocket/HTTP + WebUI (GMAC + lwIP 2.2) | built |
+| SD job streaming + G65 macros (SERCOM4 + FatFs) | built |
+
+Configuration lives in `src/my_machine.h` (**run `pio run -t clean`
+after changing it** — SCons cannot see force-included headers).
+
 License: MIT (this repo's files). The grblHAL core submodule is GPLv3, so
 the linked firmware binary as a whole is distributed under GPLv3 terms.
 See `LICENSE`.

@@ -1,0 +1,35 @@
+{
+  "caps":
+  {
+    "informal": 1,
+    "axes": 4,
+    "usb_cdc": 1,
+    "uart": 1,
+    "serial_ports": 2,
+    "spindle_pwm": 1,
+    "spindle_dir": 1,
+    "ethernet": 1,
+    "sdcard": 1,
+    "probe": 1,
+    "pio_board": "teknic_clearcore",
+    "build_dir": "src",
+    "plugins": [
+      { "id": "networking" },
+      { "id": "sdcard" },
+      { "id": "webui" },
+      { "id": "macros" }
+    ]
+  },
+  "boards": [
+    {
+      "name": "Teknic ClearCore",
+      "symbol": "BOARD_CLEARCORE",
+      "URL": "https://teknic.com/products/io-motion-controller/",
+      "MAP": "src/boards/clearcore_map.h",
+      "caps": {
+        "axes": 4,
+        "serial_ports": 2
+      }
+    }
+  ]
+}

@@ -142,8 +142,8 @@ The owner (Craig, holla2040) has 3× Teknic ClearCore controllers (~$105 ea) and
 - [ ] **EXIT TEST:** `$F` lists files; `$F=/job.nc` runs a multi-minute 4-axis job standalone; WebUI upload+run if HTTP landed
 
 ### Phase 8 — Upstream (est. 4–8 h)
-- [ ] Restructure to grblHAL org driver conventions (`my_machine.h`, board map file)
-- [ ] PR the SAME53/ClearCore driver to the grblHAL org (a zero-vendor-dependency bare-metal driver is the easiest shape to accept)
+- [x] Restructure to grblHAL org driver conventions (`my_machine.h`, board map file) — audit 2026-08-04: the repo is already convention-shaped (src/ driver root with driver.c/h + my_machine.h + boards/ map + grbl submodule + plugin submodules). Added the two org-metadata pieces: `driver.json` (Web Builder caps/board manifest) and `docs/PR_DRAFT.md`. Deltas vs org norm, deliberate: repo root is MIT with per-file third-party notices (org repos use GPL COPYING — MIT files are GPL-compatible, addressed in the PR draft); no `platformio.tpl` yet (Web Builder integration is post-acceptance work with the maintainer).
+- [ ] PR the SAME53/ClearCore driver to the grblHAL org (a zero-vendor-dependency bare-metal driver is the easiest shape to accept) — **draft ready in docs/PR_DRAFT.md; deliberately NOT opened until the bench checklist is green** (owner's "assume it works" covers desk work, not publishing unverified claims to the org)
 - [ ] **EXIT TEST:** PR opened; local/fork builds green against the pinned core and current master; maintainer feedback addressed (org CI/merge timing is the maintainer's, not ours)
 
 ## 6. Risks
@@ -238,6 +238,8 @@ Our claimed timers (TC4+TC5 stepper, TC6 pulse, TC7 debounce) are used as **inte
 
 ## Session Log
 *(append newest entries at the top: date, agent, what was done, what was learned, blockers)*
+
+- **2026-08-04 — Claude (Phase 8 prep — END OF THE DESK ROAD):** driver.json (Web Builder manifest), docs/PR_DRAFT.md (complete PR body with an explicit DO-NOT-OPEN-UNTIL-BENCH-GREEN gate and a fill-from-bench verification section), README status table. Phase 8's restructure box is checked (repo already org-shaped; deltas documented); the PR box intentionally stays open. **Every line of desk work the plan defines is now done.** What remains needs hardware: the 11-step bench queue (two entries down), the ClearPath MSP config, and then the PR. When bench issues surface: each phase is one commit (`git log --oneline` reads as a rollback menu), the old Teknic-stack test sketches in `/oldhome/holla/clearcore_projects/src/` (sd, blink, udp...) make good differential diagnostics, and the schematic netlist scripts' findings are all recorded in Appendix A.
 
 - **2026-08-04 — Claude (Phase 6 CLOSED — owner said "keep going assume it works"):** HTTP + WebUI land (313.2 KB flash 61.7% / 75.0 KB RAM 38.1%): httpd + upload + cJSON + fs_ram/fs_stream from the networking plugin, WebUI plugin pinned `6ce881f2` at src/webui (assets from SD `/www`), http-port setting, SD G65 macros via sdcard/fs_stream+macros. Debugging yielded two repo-wide lessons now recorded in the Phase 6 checkbox: plugins_init.h must be included inside driver_init (plugin inits silently skipped before this — recheck ANY plugin added earlier than this note), and my_machine.h changes REQUIRE `pio run -t clean` (SCons blind spot; warned in the header itself). lwIP repinned 2_2_1. Also answered owner question: no "babysteps" dir in clearcore_projects — the 2021 SD test is `src/sd/sd.ino` (Teknic-stack based; useful bench differential diagnostic vs our SERCOM4 path). **All of Phases 0–7 including every Phase 6 sub-item is now desk-complete. Next: Phase 8 upstream PREP (restructure audit + PR draft) — the PR itself will NOT be opened until the bench is green.**
 
