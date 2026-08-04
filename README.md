@@ -41,19 +41,30 @@ pio run          # or: make bin
 
 Output: `.pio/build/clearcore/firmware.{elf,bin}`, linked at 0x4000.
 
-## Flashing — READ THIS FIRST
+## Flashing
 
-The Teknic UF2/SAM-BA bootloader occupies flash `0x0000–0x4000` and **Teknic
-does not publish it**. Losing it is the only irreversible failure mode on
-this board.
+**No debugger needed.** The Teknic bootloader (first 16 KB) offers two USB
+paths, both bootloader-safe by design — the bootloader itself does the
+writing and protects its own region:
 
-Rules:
+1. **Drag-drop (simplest):** `make uf2`, double-tap the ClearCore reset
+   button (a USB boot drive appears), copy `grblhal-clearcore.uf2` onto
+   it. Board resets into grblHAL. While you're there, save the drive's
+   `INFO_UF2.TXT` contents into PLAN.md — it identifies the bootloader.
+2. **bossac (scriptable):** `make flash-usb` — PlatformIO's sam-ba upload
+   with automatic 1200-baud touch (Teknic's own `flash_clearcore.cmd`
+   flow: app port 2890:8022 → touch → bootloader port 2890:0022 →
+   `bossac --offset=0x4000`). Once grblHAL runs, its CDC also honors the
+   1200-baud touch, so reflashing needs no button presses.
+3. **Atmel-ICE/SWD:** `make flash` (OpenOCD, sector-erase, 0x4000 up).
+   Only needed for debugging or bootloader recovery.
 
-1. **NEVER chip-erase / mass-erase the part** — not from OpenOCD, not from
-   MPLAB, not from any GUI "erase before program" checkbox.
-2. Only flash through `make flash` (OpenOCD `program … 0x4000`), which
-   sector-erases just the range it writes, starting at 0x4000.
-3. **Before the first flash of each board, dump its bootloader:**
+### Bootloader safety (SWD path only)
+
+The bootloader in `0x0000–0x4000` is not published by Teknic — losing it
+is the only irreversible failure mode, and only SWD tools can touch that
+region. If you use the Atmel-ICE: **never chip-erase / mass-erase**, and
+dump the bootloader first, once per board:
 
    ```
    make dump-bootloader     # writes + sanity-checks bootloader-16k.bin

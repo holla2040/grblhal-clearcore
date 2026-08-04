@@ -12,6 +12,18 @@ BUILD = .pio/build/clearcore
 bin:
 	pio run
 
+# .bin -> .uf2 for the drag-drop path: double-tap the ClearCore reset
+# button, a boot drive appears, copy grblhal-clearcore.uf2 onto it.
+uf2: bin
+	python3 tools/bin2uf2.py -o grblhal-clearcore.uf2 $(BUILD)/firmware.bin
+
+# Flash over USB via the Teknic bootloader (bossac/SAM-BA, 1200-baud touch,
+# app at 0x4000). Bootloader-safe by design — the bootloader does the
+# writing and protects its own 16 KB. No debugger needed.
+flash-usb: bin
+	pio run -t upload
+
+# Flash via Atmel-ICE/SWD (sector erase, app range only)
 flash: bin
 	openocd -f clearcore.cfg -c "program $(BUILD)/firmware.bin verify reset 0x4000;shutdown"
 

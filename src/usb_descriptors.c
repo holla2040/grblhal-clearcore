@@ -1,15 +1,17 @@
 /*
  * usb_descriptors.c — TinyUSB device/config/string descriptors for the
- * grblHAL ClearCore CDC console. VID/PID = the ClearCore's own IDs
- * (0x239A:0x80CD, from Teknic's board definition).
+ * grblHAL ClearCore CDC console. VID/PID = Teknic's REAL application-port
+ * IDs (0x2890:0x8022 — their flash_clearcore.cmd matches this to find the
+ * app port for the 1200-baud touch; bootloader port is 0x2890:0x0022).
+ * The 0x239A:0x80CD pair in the community board JSON was wrong.
  *
  * MIT License, Copyright (c) 2026 Craig Hollabaugh
  */
 
 #include "tusb.h"
 
-#define USB_VID 0x239A
-#define USB_PID 0x80CD
+#define USB_VID 0x2890
+#define USB_PID 0x8022
 
 enum {
     ITF_NUM_CDC = 0,
