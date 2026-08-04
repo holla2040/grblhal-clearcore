@@ -17,6 +17,7 @@
 #include "shiftreg.h"
 #include "systick.h"
 #include "stepper.h"
+#include "spindle_cc.h"
 #include "boards/clearcore_map.h"
 
 #include "grbl/grbllib.h"
@@ -265,16 +266,37 @@ static void hlfb_poll (sys_state_t state)
 
 #endif /* HLFB_MONITOR_ENABLE */
 
-/* --- Coolant: state is tracked, outputs arrive in Phase 4 --- */
+/* --- Coolant: flood = IO-3, mist = IO-0, connector LEDs mirror state --- */
 
 static void coolantSetState (coolant_state_t mode)
 {
     coolant_state = mode;
+    mode.value ^= settings.coolant.invert.mask;
+
+    pin_write(COOLANT_FLOOD_GRP, COOLANT_FLOOD_PIN, mode.flood ^ IO_OUT_INVERT);
+    pin_write(COOLANT_MIST_GRP, COOLANT_MIST_PIN, mode.mist ^ IO_OUT_INVERT);
+
+    if(coolant_state.flood)
+        sr_set(SR_LED_IO_3);
+    else
+        sr_clear(SR_LED_IO_3);
+    if(coolant_state.mist)
+        sr_set(SR_LED_IO_0);
+    else
+        sr_clear(SR_LED_IO_0);
 }
 
 static coolant_state_t coolantGetState (void)
 {
     return coolant_state;
+}
+
+static void outputs_init (void)
+{
+    pin_write(COOLANT_FLOOD_GRP, COOLANT_FLOOD_PIN, IO_OUT_INVERT ? true : false);
+    pin_write(COOLANT_MIST_GRP, COOLANT_MIST_PIN, IO_OUT_INVERT ? true : false);
+    pin_dir_out(COOLANT_FLOOD_GRP, COOLANT_FLOOD_PIN);
+    pin_dir_out(COOLANT_MIST_GRP, COOLANT_MIST_PIN);
 }
 
 /* --- Atomic helpers (ported from the 2021 driver.c:157-177) --- */
@@ -378,6 +400,7 @@ static bool driver_setup (settings_t *settings)
 {
     stepper_hw_init();      /* GCLK2, TC4/TC5 + TC6, step/dir GPIO, '125 gates low */
     inputs_init();          /* EIC limits/control + probe/HLFB inputs */
+    outputs_init();         /* coolant pins (spindle pins init in spindle_cc_register) */
 
 #if HLFB_MONITOR_ENABLE
     on_execute_realtime_prev = grbl.on_execute_realtime;
@@ -432,10 +455,14 @@ bool driver_init (void)
     hal.probe.get_state = probeGetState;
     hal.probe.configure = probeConfigure;
 
+    spindle_cc_register();
+
     hal.signals_cap.reset = On;
     hal.signals_cap.feed_hold = On;
     hal.signals_cap.cycle_start = On;
     hal.limits_cap.min.mask = AXES_BITMASK;
+    hal.coolant_cap.flood = On;
+    hal.coolant_cap.mist = On;
     hal.driver_cap.probe = On;
     hal.driver_cap.step_pulse_delay = On;
 

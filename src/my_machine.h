@@ -17,6 +17,13 @@
 // otherwise unconfigured motors alarm immediately.
 #define HLFB_MONITOR_ENABLE 0
 
+// Input polarity defaults (schematic netlist 2026-08-04): every ClearCore
+// input is electrically non-inverting but industrially ACTIVE-LOW — a
+// closed switch / conducting NPN sensor pulls the pin low. Invert all.
+#define DEFAULT_LIMIT_SIGNALS_INVERT_MASK AXES_BITMASK
+#define DEFAULT_CONTROL_SIGNALS_INVERT_MASK SIGNALS_BITMASK
+#define DEFAULT_PROBE_SIGNAL_INVERT On
+
 // Plugins (all off; networking/sdcard arrive in Phases 6/7)
 
 #endif

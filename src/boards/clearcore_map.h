@@ -84,4 +84,36 @@
 #define PROBE_GRP       GRP_C   /* IO-5 input read IN05n = PC19 */
 #define PROBE_PIN       19
 
+/* Digital outputs (24 V low-side drivers on the IO connectors).
+   POLARITY (schematic netlist, pages 5/6, 2026-08-04): IO-0..IO-3 pass a
+   74AHCT86-as-inverter before the protected FET → MCU pin LOW = output ON
+   (IO_OUT_INVERT 1). IO-4/IO-5 go straight into a DRV8844 half-bridge —
+   the OPPOSITE sense (EN pin HIGH + IN low = output ON), handled
+   separately below, never via IO_OUT_INVERT.
+   IO-0 doubles as the future 4-20 mA analog-out option (SR bit 20 must
+   stay wire-HIGH = digital mode — our logical-0 default does that). */
+#define IO_OUT_INVERT   1
+
+#define SPINDLE_ENABLE_GRP  GRP_A   /* IO-1: OUT01 = PA01 (inverted group) */
+#define SPINDLE_ENABLE_PIN  1
+#define SPINDLE_DIR_GRP     GRP_A   /* IO-2: OUT02 = PA06 (inverted group) */
+#define SPINDLE_DIR_PIN     6
+#define COOLANT_FLOOD_GRP   GRP_A   /* IO-3: OUT03 = PA07 (inverted group) */
+#define COOLANT_FLOOD_PIN   7
+#define COOLANT_MIST_GRP    GRP_A   /* IO-0: OUT00 = PA00 (inverted group) */
+#define COOLANT_MIST_PIN    0
+
+/* Spindle PWM on IO-4 via the DRV8844 (page 6; no inverter, no SR gating):
+   PB16 = EN3 (active HIGH, 4.99k pull-down = safe off at power-on),
+   PB14 = IN3 (TCC4/WO0, mux F) — IN low = load ON, so the TCC output is
+   hardware-inverted (DRVCTRL.INVEN0). DRV8844 FAULTn = PB00 (active low,
+   any-channel short/overtemp/overvolt; input only, not yet monitored). */
+#define SPINDLE_PWM_GRP     GRP_B
+#define SPINDLE_PWM_PIN     14
+#define SPINDLE_PWM_MUX     5       /* function F = TCC4/WO0 */
+#define SPINDLE_PWMEN_GRP   GRP_B
+#define SPINDLE_PWMEN_PIN   16
+#define IO45_FAULT_GRP      GRP_B
+#define IO45_FAULT_PIN      0
+
 #endif /* CLEARCORE_MAP_H */
