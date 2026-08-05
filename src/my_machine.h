@@ -41,7 +41,8 @@
 #define TELNET_ENABLE 1
 #define WEBSOCKET_ENABLE 1
 #define HTTP_ENABLE 1
-#define WEBUI_ENABLE 0  /* TEMP: forces SDCARD on via driver_opts */
+#define WEBUI_ENABLE 1
+#define WEBUI_INFLASH 1 /* embedded fallback index so the site works with a bare card */
 
 // SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
 #define SDCARD_ENABLE 1
