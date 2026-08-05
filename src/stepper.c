@@ -4,6 +4,8 @@
  * TC4+TC5 chained (COUNT32, MFRQ) = segment timer: MC0 interrupt at prio 0
  * calls hal.stepper.interrupt_callback. TC6 (COUNT16, MFRQ, ONESHOT) =
  * pulse timer: ends the step pulse (and starts it, in the delayed variant).
+ * TC6 fires on OVF, not MC0 — in MFRQ CC0 is the period register, so the
+ * one-shot's completion at TOP is an overflow, not a compare match.
  * Both clocked from GCLK2 = DPLL1/2 = 60 MHz (hal.f_step_timer).
  * Register idioms cribbed from the grblHAL SAMD21 driver, adapted to the
  * SAME5x TC (dedicated SYNCBUSY register, WAVE register, per-TC IRQ lines).
@@ -135,7 +137,7 @@ void TC4_Handler (void)
    starts it and re-arms for the width). */
 void TC6_Handler (void)
 {
-    TC6->COUNT16.INTFLAG.reg = TC_INTFLAG_MC0;
+    TC6->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF | TC_INTFLAG_MC0;
 
     if(pulse_state == Pulse_Delaying) {
         pulse_state = Pulse_Idle;
@@ -190,6 +192,9 @@ void stepper_hw_init (void)
         pin_dir_out(DIR_PORT_GRP, dir_pin[axis]);
     }
 
+    /* Bench 2026-08-04: HIGH was tried here too (suspected missed inversion
+       in the OE path) — no change, step pins dead either way. Back to the
+       netlist-derived LOW; the gate is not the fault. */
     pin_write(STEP_GATE01_GRP, STEP_GATE01_PIN, false);
     pin_write(STEP_GATE23_GRP, STEP_GATE23_PIN, false);
     pin_dir_out(STEP_GATE01_GRP, STEP_GATE01_PIN);
@@ -223,8 +228,12 @@ void stepper_hw_init (void)
     TC6->COUNT16.CTRLA.bit.ENABLE = 1;
     SYNCBUSY_WAIT(&TC6->COUNT16, TC_SYNCBUSY_ENABLE);
     TC6->COUNT16.CTRLBSET.reg = TC_CTRLBSET_CMD_STOP;
-    TC6->COUNT16.INTFLAG.reg = TC_INTFLAG_MC0;      /* drop any flag from the enable-to-stop window */
-    TC6->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
+    /* Pulse-end interrupt is OVF, NOT MC0: in MFRQ CC0 is the period
+       register, so reaching TOP is an overflow, not a compare match. MC0
+       never sets here — armed it originally and the pulse never ended
+       (bench 2026-08-04: starts=250 irqs=0, INTFLAG.OVF set, MC0 clear). */
+    TC6->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF | TC_INTFLAG_MC0;     /* drop flags from the enable-to-stop window */
+    TC6->COUNT16.INTENSET.reg = TC_INTENSET_OVF;
 
     /* Step engine outranks everything (PLAN.md NVIC map: prio 0) */
     NVIC_SetPriority(TC4_IRQn, 0);

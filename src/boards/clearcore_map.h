@@ -37,7 +37,9 @@
 #define A_DIR_PIN       16      /* M-3 A = PA16 */
 
 /* Step-path gate pins: 74AHCT125 output-enables. MUST be driven LOW as
-   GPIOs or steps never reach the connectors (4.99k pull-ups block them). */
+   GPIOs or steps never reach the connectors (4.99k pull-ups block them).
+   Bench 2026-08-04: both polarities tried while chasing dead step pins —
+   no difference, so the gate is not implicated. */
 #define STEP_GATE01_GRP GRP_A   /* Mtr_CLK_01 = PA27 gates M-0/M-1 */
 #define STEP_GATE01_PIN 27
 #define STEP_GATE23_GRP GRP_B   /* Mtr_CLK_23 = PB23 gates M-2/M-3 */
