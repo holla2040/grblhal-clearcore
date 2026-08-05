@@ -3,6 +3,7 @@
 *.elf
 *.bin
 !bootloader-16k.bin
+*.uf2
 *~
 *.swp
 *.swo

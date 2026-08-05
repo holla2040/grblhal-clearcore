@@ -143,7 +143,15 @@ static control_signals_t systemGetState (void)
     signals.feed_hold = !!(b & (1UL << FEED_HOLD_PIN));
     signals.cycle_start = !!(c & (1UL << CYCLE_START_PIN));
 
-    signals.value ^= settings.control_invert.value;
+    /* Invert ONLY the signals this driver actually reads. The core forces
+       limits_override into control_invert (settings.c: "control_invert.mask
+       |= limits_override.mask"), so a blanket XOR flips that bit from 0 to 1
+       and the core then believes a limits-override button is permanently
+       held — which silently suppresses every limit from Pn: (report.c) and
+       bypasses the limits-engaged alarm (protocol.c). Same trap applies to
+       e_stop / safety_door / motor_fault, which we also never set.
+       Bench 2026-08-05: cost us "limits read fine but never report". */
+    signals.value ^= (settings.control_invert.value & hal.signals_cap.mask);
 
     return signals;
 }

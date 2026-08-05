@@ -139,9 +139,15 @@ static bool spindleConfig (spindle_ptrs_t *spindle)
         SYNCBUSY_WAIT(TCC4, TCC_SYNCBUSY_ENABLE);
 
         TCC4->CTRLA.reg = TCC_CTRLA_PRESCALER(pwm_prescaler_bits);
-        /* IN3 is low-active at the DRV8844: invert WO0 unless the user's
-           $ pwm-invert asks for the wire-level opposite */
-        TCC4->DRVCTRL.reg = settings.pwm_spindle.invert.pwm ? 0 : TCC_DRVCTRL_INVEN0;
+        /* No hardware inversion: PB14 (DRV8844 IN3) -> OUT4 -> IO-4 is
+           non-inverting pin-to-connector. The DRV8844 "IN low = load on"
+           note describes load WIRING (load between IO-4 and Vsupply), not
+           an inversion in the signal path, so baking INVEN0 in here was
+           wrong. Polarity is the user's via $16 bit 2, which the core
+           already applies in software (spindle_control.c invert_pwm());
+           keying DRVCTRL off the same setting double-inverted and made
+           $16 a no-op (bench 2026-08-04). */
+        TCC4->DRVCTRL.reg = 0;
         TCC4->WAVE.reg = TCC_WAVE_WAVEGEN_NPWM;
         TCC4->PER.reg = spindle_pwm.period;
         TCC4->CC[0].reg = spindle_pwm.off_value;
@@ -175,7 +181,14 @@ void spindle_cc_register (void)
             .gpio_controlled = On,
             .variable = On,
             .laser = On,
-            .direction = On
+            .direction = On,
+            /* spindleConfig() already honours invert.pwm, but without this
+               cap the core rejects the $16 PWM bit (Status_SettingDisabled)
+               and forces it Off — the invert path was unreachable. Whether
+               the pin should track speed (VFD signal) or its complement
+               (DRV8844 load, IN low = on) depends on wiring, so it belongs
+               to the user, not a compile-time guess. */
+            .pwm_invert = On
         }
     };
 
