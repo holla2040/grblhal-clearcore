@@ -1,0 +1,33 @@
+diff --git a/httpd.c b/httpd.c
+index b265a84..d922516 100644
+--- a/httpd.c
++++ b/httpd.c
+@@ -229,6 +229,8 @@ typedef struct {
+     u16_t pos;     /* The position of the first unsent header byte in the current string */
+     u16_t index;   /* The index of the hdr string currently being sent. */
+     u16_t next;    /* The index of the hdr string to add next. */
++    u16_t finalized; /* Content-Length/Connection added; guards against re-adding
++                        when http_send_headers() runs more than once per response */
+ } http_headers_t;
+ 
+ struct http_state {
+@@ -1096,9 +1098,16 @@ static http_send_state_t http_send_headers (struct altcp_pcb *pcb, http_state_t
+     u16_t len, hdrlen, sendlen;
+     http_send_state_t data_to_send = HTTPSend_NoData;
+ 
+-    if (!is_response_header_set(hs, "Content-Length")) {
+-        get_http_content_length(hs, hs->handle != NULL ? hs->handle->size : -1);
+-//        get_http_content_length(hs, (hs->handle != NULL) && (hs->handle->flags & FS_FILE_FLAGS_HEADER_PERSISTENT) ? hs->handle->len : -1);
++    /* Add the closing Connection/Content-Length headers exactly once: the
++       stored fragment starts with "Connection:", so is_response_header_set()
++       alone can never see "Content-Length" as set, and a response whose
++       headers span more than one tcp_write would append a duplicate pair —
++       which then leaks into the body (bench 2026-08-04: WebUI ESP800
++       responses started with a second header block). */
++    if (!hs->response_hdr.finalized) {
++        hs->response_hdr.finalized = 1;
++        if (!is_response_header_set(hs, "Content-Length"))
++            get_http_content_length(hs, hs->handle != NULL ? hs->handle->size : -1);
+     }
+ 
+     if(hs->method == HTTP_Head && hs->handle) {
