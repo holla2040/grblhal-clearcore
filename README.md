@@ -8,19 +8,44 @@ in this firmware** — see `PLAN.md` for the architecture and project plan.
 
 ## Status
 
-All phases (0–7) are desk-complete and building — 313 KB flash / 75 KB
-RAM. **Bench validation pending** (checklist in PLAN.md's Session Log).
+**Running on hardware.** All phases (0–7) are built and the board is
+alive on the bench — 331 KB flash (65 %) / 76 KB RAM (38 %). What's
+left needs motors: scope checks on the step pins, ClearPath MSP
+configuration, homing against real switches (full log in PLAN.md's
+Session Log).
 
 | Subsystem | State |
 |---|---|
-| 4-axis step engine (TC4+TC5 + TC6, prio 0) | built, awaiting scope |
+| grblHAL core boot, `$I`/`$$`/`?`, settings write/readback | **bench-verified** |
+| 4-axis command execution (XYZA moves, job streaming) | **bench-verified** (no motors attached yet — scope + servos pending) |
+| USB CDC (TinyUSB, enumerates 2890:8022) | **bench-verified** |
+| Ethernet: DHCP, telnet, websocket (GMAC + lwIP 2.2) | **bench-verified** |
+| SD card: mount, directory, G-code job streaming (SERCOM4 + FatFs) | **bench-verified** |
+| WebUI over HTTP with live DRO | **bench-verified** (see below) |
+| Motor enables + LEDs + port modes (shift register) | **bench-verified** (underglow heartbeat) |
 | Homing/limits/control (EIC prio 2, hw debounce) + polled probe | built |
-| Motor enables + LEDs + port modes (shift register) | built |
 | PWM spindle (DRV8844/IO-4) + coolant (IO-3/IO-0) | built |
-| Settings NVS (last 8 KB flash block) | built |
-| UART console (COM-0) + USB CDC (TinyUSB) | built |
-| Ethernet: telnet/websocket/HTTP + WebUI (GMAC + lwIP 2.2) | built |
-| SD job streaming + G65 macros (SERCOM4 + FatFs) | built |
+| UART console (COM-0) | built |
+| Settings NVS (last 8 KB flash block) | built (power-cycle persistence test pending) |
+
+## WebUI
+
+`http://<board-ip>/` serves [ESP3D-WebUI v3](https://github.com/luc-github/ESP3D-WEBUI)
+(DRO, jog, file manager, job start). Setup facts:
+
+- The full UI lives on the SD card at `/www/index.html.gz`; a minimal
+  maintenance page embedded in flash (`WEBUI_INFLASH 1`) serves when the
+  card has none, and is always reachable at `/?forcefallback=yes`.
+- The UI can be installed **without removing the card**:
+  `GET /sdfiles?action=createdir&filename=www&path=/`, then multipart-POST
+  `index.html.gz` to `/sdfiles` with filename `/www/index.html.gz`.
+- **Set `$397=250`** (WebUI auto report interval, ms) and reset, or the
+  DRO never updates — the v3 UI does not poll `?` on its own.
+
+Note: `src/networking` (pinned submodule) carries a local fix for an
+upstream duplicate-header bug that breaks WebUI API responses. After any
+`git submodule update`, re-apply
+`tools/patches/plugin-networking-httpd-dup-headers.patch`.
 
 Configuration lives in `src/my_machine.h` (**run `pio run -t clean`
 after changing it** — SCons cannot see force-included headers).
@@ -116,6 +141,12 @@ netlist.)
 Atmel-ICE on SWD. `pio debug`, or manually: `make serve` (OpenOCD gdb
 server) + `make debug` (gdb on the elf). Board configs: `clearcore.cfg`
 (one-shot flash/reset) and `clearcore-debug.cfg` (server stays up).
+
+There is also a permanent TX-only debug console on **IO-0** (combined
+I/O header pin 12, 115200-8N1, load with ~1.5 kΩ to GND for 3.3 V
+logic). `dbg_puts()`/`dbg_hex32()` from anywhere in the firmware;
+compiled out entirely when `DEBUG_CONSOLE_ENABLE` is 0. This console
+was the workhorse for all bench debugging — see `src/debug_uart.h`.
 
 ## Layout
 
