@@ -77,4 +77,33 @@ void dbg_dec(uint32_t v)
     dbg_puts(&buf[i]);
 }
 
+/* Real HardFault handler (replaces the startup file's silent while(1)
+   alias): print the faulting PC/LR and the fault status register on the
+   debug console, forever, so a late-connected console still catches it.
+   MemManage/BusFault/UsageFault escalate here (SHCSR handlers unarmed). */
+void hardfault_report (uint32_t *sp)
+{
+    uint32_t pc = sp[6], lr = sp[5], cfsr = SCB->CFSR, bfar = SCB->BFAR;
+
+    for (;;) {
+        dbg_puts("HARDFAULT pc="); dbg_hex32(pc);
+        dbg_puts(" lr=");   dbg_hex32(lr);
+        dbg_puts(" cfsr="); dbg_hex32(cfsr);
+        dbg_puts(" bfar="); dbg_hex32(bfar);
+        dbg_puts("\n");
+        for (volatile uint32_t i = 0; i < 30000000; i++) { }
+    }
+}
+
+__attribute__((naked)) void HardFault_Handler (void)
+{
+    __asm volatile (
+        "tst lr, #4        \n"      /* which stack was in use? */
+        "ite eq            \n"
+        "mrseq r0, msp     \n"
+        "mrsne r0, psp     \n"
+        "b hardfault_report\n"
+    );
+}
+
 #endif /* DEBUG_CONSOLE_ENABLE */

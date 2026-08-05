@@ -288,3 +288,10 @@ Our claimed timers (TC4+TC5 stepper, TC6 pulse, TC7 debounce) are used as **inte
 - **2026-08-04 — Claude (planning session, review pass):** Fable 5 adversarial review of this plan completed: every checkable hardware/post-mortem claim verified correct against source (15 `__disable_irq` sites exact, line numbers exact, all paths exist); 2 CRITICAL + 5 MAJOR + 9 MINOR process fixes applied (bootloader dump procedure, DFP sourcing correction, GPLv3 licensing task, master-SHA pinning, my_machine.h moved to Phase 2, frameworkless build mechanics, COM-0 physical layer, deprecated-API and attribution details). **Repo state: remote `origin` configured; ZERO commits — PLAN.md is untracked, first commit awaits owner instruction.**
 - **2026-08-04 — Claude (planning session, later):** Created this repo (`/home/holla/grblhal-clearcore`, git init) and moved PLAN.md here from the 2021 archive repo per owner decision — the old repo is frozen as a salvage source only. Remote `git@github.com:holla2040/grblhal-clearcore.git` added and verified reachable (empty GitHub repo). First Phase 0 box checked.
 - **2026-08-04 — Claude (planning session):** Research + this plan. Firmware survey (grblHAL wins), 2021 post-mortem (pulse disruption during 200 µs Teknic ISR; stepper HAL never written; TCC0/TCC1 timer collisions latent in driver.h), library source audit (v1.7.4: ~15 `__disable_irq()` sections; bursty step hardware confirmed), decision locked: bare-metal, zero Teknic runtime code. No implementation started.
+
+---
+
+## TODO before senders / cleanup queue
+
+- **Undo the USB serial local echo** (`src/usb_serial.c` usb_pump): typed chars are echoed back over CDC for bare-terminal bench work (2026-08-05). Any sender software (gSender/ioSender/UGS) will choke on seeing its own commands reflected — remove (or gate behind a setting) before connecting one.
+- **Undo the UDP debug-console RX mirror** (`src/usb_serial.c` usb_pump, the `dbg_putc(data)` of inbound USB): bench diagnostic from the same session — remove when the hang hunt is over.

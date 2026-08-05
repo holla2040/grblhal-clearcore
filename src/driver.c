@@ -175,16 +175,21 @@ static probe_state_t probeGetState (void)
 
 /* EIC line ISRs — prio 2 */
 
+/* NULL guards: these fire from hardware whenever the EIC lines are armed,
+   and a NULL callback here is a wild jump to address 0 from a prio-2 ISR
+   (same failure class as the hal.enumerate_pins wedge). */
 static void limit_isr (uint32_t eic_line)
 {
     EIC->INTFLAG.reg = 1UL << eic_line;
-    hal.limits.interrupt_callback(limitsGetState());
+    if(hal.limits.interrupt_callback)
+        hal.limits.interrupt_callback(limitsGetState());
 }
 
 static void control_isr (uint32_t eic_line)
 {
     EIC->INTFLAG.reg = 1UL << eic_line;
-    hal.control.interrupt_callback(systemGetState());
+    if(hal.control.interrupt_callback)
+        hal.control.interrupt_callback(systemGetState());
 }
 
 void EIC_EXTINT_0_Handler (void) { limit_isr(X_LIMIT_EXTINT); }
