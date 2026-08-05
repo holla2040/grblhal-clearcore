@@ -6,6 +6,8 @@ ClearCore controller (ATSAME53N19A, Cortex-M4F @ 120 MHz): a standalone
 step/direction. No RTOS, no Arduino, and **no Teknic library code executes
 in this firmware** — see `PLAN.md` for the architecture and project plan.
 
+![Teknic ClearCore controller](docs/clearcore-standalone.png)
+
 ## Status
 
 **Running on hardware.** All phases (0–7) are built and the board is
