@@ -25,7 +25,6 @@
 
 #include "clearcore.h"
 #include "sd_spi.h"
-#include "debug_uart.h"
 
 #define SD_MOSI_GRP  GRP_B      /* PB08 = SERCOM4 PAD0 */
 #define SD_MOSI_PIN  8
@@ -184,17 +183,6 @@ void sd_spi_init(void)
 
     spi->BAUD.reg = SD_SPI_BAUD(SD_SPI_HZ_SLOW);
 
-    /* SERCOM4 enable-stall diagnostics (bench 2026-08-04) */
-    dbg_puts("sd4 apbd=");  dbg_hex32(MCLK->APBDMASK.reg);
-    dbg_puts(" pch=");      dbg_hex32(GCLK->PCHCTRL[SERCOM4_GCLK_ID_CORE].reg);
-    dbg_puts(" pacD=");     dbg_hex32(PAC->STATUSD.reg);
-    dbg_puts("\nsd4 rd ctrla\n");
-    uint32_t a = spi->CTRLA.reg;
-    dbg_puts("sd4 ctrla="); dbg_hex32(a);
-    dbg_puts(" sync=");     dbg_hex32(spi->SYNCBUSY.reg);
-    dbg_puts("\nsd4 wr enable\n");
-    spi->CTRLA.reg = a | SERCOM_SPI_CTRLA_ENABLE;
-    dbg_puts("sd4 wr done\n");
+    spi->CTRLA.bit.ENABLE = 1;
     SYNCBUSY_WAIT(spi, SERCOM_SPI_SYNCBUSY_ENABLE);
-    dbg_puts("sd4 synced\n");
 }

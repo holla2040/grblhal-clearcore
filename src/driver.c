@@ -489,9 +489,7 @@ static bool driver_setup (settings_t *settings)
 #if SDCARD_ENABLE
     dbg_puts("setup: sd\n");
     sd_spi_init();      /* SERCOM4; no card-detect line — mount on demand */
-    dbg_puts("setup: sdcard_init\n");
     sdcard_init();
-    dbg_puts("setup: sdcard_init done\n");
 #endif
 
 #if ETHERNET_ENABLE

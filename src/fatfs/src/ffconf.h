@@ -162,10 +162,9 @@
 
 #define FF_FS_EXFAT		1
 /*
- * 0: FAT12/16/32 only, which is what SD/SDHC cards up to 32 GB ship with.
- * exFAT would add ~10 KB of flash and carries Microsoft patent terms; if
- * SDXC support is ever wanted, set this and FF_LBA64 to 1 (exFAT also
- * requires FF_USE_LFN != 0, already satisfied).
+ * exFAT on: SDXC cards (64 GB+) ship exFAT-formatted, and users will
+ * inevitably insert one. Costs ~10 KB flash (we have room) and needs
+ * FF_USE_LFN != 0, already satisfied.
  */
 
 #define FF_FS_NORTC		1

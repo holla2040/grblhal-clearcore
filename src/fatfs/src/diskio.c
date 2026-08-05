@@ -150,9 +150,6 @@ static int xmit_datablock(const BYTE *buff, BYTE token)
  * Send a command and return R1 (bit 7 set means no response). ACMDxx are
  * sent as CMD55 followed by the command itself.
  */
-static BYTE scan_log[10];
-static BYTE scan_n;
-
 /* CRC7 (poly x^7+x^3+1) over the 5 command bytes. ChaN's stock driver sends
    static CRCs for CMD0/CMD8 only — legal per spec (CRC defaults off in SPI
    mode) — but this bench's 32GB card never disables CRC checking and answers
@@ -175,16 +172,6 @@ static BYTE crc7(const BYTE *d, BYTE len)
     }
 
     return crc;
-}
-
-static void dbg_scan(void)
-{
-    BYTE i;
-    dbg_puts(" scan=");
-    for (i = 0; i < scan_n; i++) {
-        dbg_hex32(scan_log[i]); dbg_putc(' ');
-    }
-    dbg_puts("\n");
 }
 
 static BYTE send_cmd(BYTE cmd, DWORD arg)
@@ -227,10 +214,8 @@ static BYTE send_cmd(BYTE cmd, DWORD arg)
     }
 
     n = 10;
-    scan_n = 0;
     do {
         res = sd_spi_xfer(0xFF);
-        scan_log[scan_n++] = res;
     } while ((res & 0x80) && --n);
 
     return res;
@@ -243,7 +228,6 @@ DSTATUS disk_status(BYTE pdrv)
 
 DSTATUS disk_initialize(BYTE pdrv)
 {
-    dbg_puts("disk_init\n");
     BYTE n, cmd, ty, ocr[4];
     uint32_t start;
 
@@ -261,13 +245,7 @@ DSTATUS disk_initialize(BYTE pdrv)
     }
 
     ty = 0;
-    {
-        BYTE r0 = send_cmd(CMD0, 0);
-        dbg_puts("cmd0 r="); dbg_hex32(r0); dbg_scan();
-        if (r0 == 1) goto cmd0_ok;
-    }
-    if (0) {
-cmd0_ok:
+    if (send_cmd(CMD0, 0) == 1) {                   /* enter idle state */
 
         start = millis();
 
@@ -275,35 +253,24 @@ cmd0_ok:
         for (n = 0; n < 4; n++) {
             ocr[n] = sd_spi_xfer(0xFF);             /* trailing R7 bytes */
         }
-        dbg_puts("cmd8 r="); dbg_hex32(r8); dbg_scan();
-        dbg_puts("r7=");
-        for (n = 0; n < 4; n++) { dbg_hex32(ocr[n]); dbg_putc(' '); }
-        dbg_puts("tail=");
-        for (n = 0; n < 6; n++) { dbg_hex32(sd_spi_xfer(0xFF)); dbg_putc(' '); }
-        dbg_puts("\n");
-        /* Route on the R7 payload, not R1: this bench's 32GB card answers
-           CMD8 with a mangled R1 (0x00) and version nibble, but echoes the
-           voltage range and check pattern correctly — treat that as SDv2 */
+        /* Route on the R7 payload, not just R1: a quirky 32GB card on the
+           bench answers CMD8 with a mangled R1 (0x00) and version nibble
+           but echoes the voltage range and check pattern correctly.
+           (Non-SDv2 cards give no R7; the extra clocks read 0xFF and
+           neither test matches.) */
         if (r8 == 1 || (ocr[2] == 0x01 && ocr[3] == 0xAA)) {
 
             if (ocr[2] == 0x01 && ocr[3] == 0xAA) { /* 2.7-3.6 V range echoed back */
-                BYTE ra = 0xFF;
 
                 /* ACMD41 with HCS set until the card leaves idle */
-                while (!elapsed(start, INIT_TIMEOUT_MS) && (ra = send_cmd(ACMD41, 1UL << 30))) {
+                while (!elapsed(start, INIT_TIMEOUT_MS) && send_cmd(ACMD41, 1UL << 30)) {
                     continue;
                 }
-                dbg_puts("acmd41 r="); dbg_hex32(ra); dbg_scan();
 
-                BYTE r58 = send_cmd(CMD58, 0);
-                dbg_puts("cmd58 r="); dbg_hex32(r58); dbg_scan();
-                if (!elapsed(start, INIT_TIMEOUT_MS) && r58 == 0) {
+                if (!elapsed(start, INIT_TIMEOUT_MS) && send_cmd(CMD58, 0) == 0) {
                     for (n = 0; n < 4; n++) {
                         ocr[n] = sd_spi_xfer(0xFF);
                     }
-                    dbg_puts("ocr=");
-                    for (n = 0; n < 4; n++) { dbg_hex32(ocr[n]); dbg_putc(' '); }
-                    dbg_puts("\n");
                     /* OCR bit 30 (CCS) distinguishes SDHC/SDXC from SDSC */
                     ty = (ocr[0] & 0x40) ? (CT_SD2 | CT_BLOCK) : CT_SD2;
                 }
@@ -335,25 +302,13 @@ cmd0_ok:
         }
     }
 
-    dbg_puts("disk_init ty="); dbg_hex32(ty); dbg_puts("\n");
+    dbg_puts("sd ty="); dbg_hex32(ty); dbg_puts("\n");
     card_type = ty;
     sd_deselect();
 
     if (ty) {
         sd_spi_speed(true);
         disk_stat &= ~STA_NOINIT;
-        {   /* byte-addressing probe: if the VBR shows up at 8192*512, the
-               card lies about CCS and wants byte addresses */
-            static BYTE tb[512];
-            if (send_cmd(CMD17, 8192UL * 512UL) == 0 && rcvr_datablock(tb, 512)) {
-                dbg_puts("ba rd data=");
-                for (n = 0; n < 16; n++) { dbg_hex32(tb[n]); dbg_putc(' '); }
-                dbg_puts("sig="); dbg_hex32(tb[510]); dbg_hex32(tb[511]); dbg_puts("\n");
-            } else {
-                dbg_puts("ba rd fail\n");
-            }
-            sd_deselect();
-        }
     } else {
         disk_stat = STA_NOINIT;
     }
@@ -377,20 +332,9 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
     }
 
     if (count == 1) {
-        BYTE r17 = send_cmd(CMD17, sect);
-        dbg_puts("rd "); dbg_hex32(sect); dbg_puts(" r="); dbg_hex32(r17);
-        if (r17 == 0 && rcvr_datablock(buff, 512)) {
+        if (send_cmd(CMD17, sect) == 0 && rcvr_datablock(buff, 512)) {
             count = 0;
-            dbg_puts(" data=");
-            for (r17 = 0; r17 < 16; r17++) { dbg_hex32(buff[r17]); dbg_putc(' '); }
-            dbg_puts("sig="); dbg_hex32(buff[510]); dbg_hex32(buff[511]);
-            if (sect == 0) {
-                UINT o;
-                dbg_puts("\npart1=");
-                for (o = 446; o < 462; o++) { dbg_hex32(buff[o]); dbg_putc(' '); }
-            }
         }
-        dbg_puts("\n");
     } else {
         if (send_cmd(CMD18, sect) == 0) {
             do {
