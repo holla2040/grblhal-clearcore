@@ -11,7 +11,7 @@ in this firmware** — see `PLAN.md` for the architecture and project plan.
 ## Status
 
 **Running on hardware.** All phases (0–7) are built and the board is
-alive on the bench — 331 KB flash (65 %) / 76 KB RAM (38 %). What's
+alive on the bench — 342 KB flash (67 %) / 77 KB RAM (39 %). What's
 left needs motors: scope checks on the step pins, ClearPath MSP
 configuration, homing against real switches (full log in PLAN.md's
 Session Log).
@@ -21,7 +21,7 @@ Session Log).
 | grblHAL core boot, `$I`/`$$`/`?`, settings write/readback | **bench-verified** |
 | 4-axis command execution (XYZA moves, job streaming) | **bench-verified** (no motors attached yet — scope + servos pending) |
 | USB CDC (TinyUSB, enumerates 2890:8022) | **bench-verified** |
-| Ethernet: DHCP, telnet, websocket (GMAC + lwIP 2.2) | **bench-verified** |
+| Ethernet: DHCP, telnet, websocket, mDNS `clearcore.local` (GMAC + lwIP 2.2) | **bench-verified** |
 | SD card: mount, directory, G-code job streaming (SERCOM4 + FatFs) | **bench-verified** |
 | WebUI over HTTP with live DRO | **bench-verified** (see below) |
 | Motor enables + LEDs + port modes (shift register) | **bench-verified** (underglow heartbeat) |
@@ -32,8 +32,14 @@ Session Log).
 
 ## WebUI
 
-`http://<board-ip>/` serves [ESP3D-WebUI v3](https://github.com/luc-github/ESP3D-WEBUI)
+`http://clearcore.local/` (or `http://<board-ip>/`) serves
+[ESP3D-WebUI v3](https://github.com/luc-github/ESP3D-WEBUI)
 (DRO, jog, file manager, job start). Setup facts:
+
+- The board announces itself over mDNS as **`clearcore.local`**
+  (hostname is `$300`, mDNS service bit in `$70`). Boards flashed
+  before mDNS existed keep their old NVS services mask — set `$70=39`
+  and `$300=clearcore`, then reset.
 
 - The full UI lives on the SD card at `/www/index.html.gz`; a minimal
   maintenance page embedded in flash (`WEBUI_INFLASH 1`) serves when the

@@ -37,7 +37,7 @@ two-timer engine on bare metal instead; no vendor library code executes.
 - NVIC map: 0 = step/pulse, 2 = EIC limits/control, 3 = GMAC,
   4 = SERCOM/USB, 7 = SysTick
 - Streams: SERCOM7 UART (board COM-0) + TinyUSB CDC; Ethernet
-  (SAME53 GMAC + KSZ8081, lwIP 2.2 NO_SYS) with telnet/websocket/http +
+  (SAME53 GMAC + KSZ8081, lwIP 2.2 NO_SYS) with telnet/websocket/http/mDNS +
   WebUI; SD (SERCOM4 SPI + FatFs) job streaming + G65 macros
 - Settings NVS in the last 8 KB flash block (NVMCTRL block erase +
   512 B page writes, CMCC invalidation)
