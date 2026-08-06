@@ -43,6 +43,8 @@
 #define HTTP_ENABLE 1
 #define WEBUI_ENABLE 1
 #define WEBUI_INFLASH 1 /* embedded fallback index so the site works with a bare card */
+#define MDNS_ENABLE 1
+#define NETWORK_HOSTNAME "clearcore" /* browse to clearcore.local */
 
 // SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
 #define SDCARD_ENABLE 1

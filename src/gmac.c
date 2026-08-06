@@ -463,6 +463,13 @@ void gmac_init (uint8_t mac_out[6])
                           ((uint32_t)mac[2] << 16) | ((uint32_t)mac[3] << 24);
     GMAC->Sa[0].SAT.reg = (uint32_t)mac[4] | ((uint32_t)mac[5] << 8);
 
+    /* Accept all multicast so the mDNS group (224.0.0.251) gets in.
+       ponytail: hash wide open; compute per-group CRC hashes into HRB/HRT
+       if stray multicast traffic ever shows up in the RX ring stats. */
+    GMAC->HRB.reg = 0xFFFFFFFFu;
+    GMAC->HRT.reg = 0xFFFFFFFFu;
+    GMAC->NCFGR.bit.MTIHEN = 1;
+
     memcpy(mac_out, mac, sizeof(mac));
 
     gmac_enable(true);

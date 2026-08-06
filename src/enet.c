@@ -22,7 +22,7 @@
 
   Changes vs. iMXRT1062: platform layer replaced with our gmac.c +
   ethernetif.c (SAME53 GMAC at NVIC prio 3, RX pumped from foreground);
-  telnet-only service scope (no http/websocket/ftp/mqtt/mdns/ssdp yet);
+  telnet/websocket/http/mdns service scope (no ftp/mqtt/ssdp yet);
   trimmed settings to services/hostname/ip-mode/ip/gateway/netmask/
   telnet-port. This file remains GPLv3 per its origin.
 */
@@ -236,6 +236,15 @@ static void enet_start_now (void *data)
     netif_index_to_name(1, if_name);
 #if LWIP_NETIF_HOSTNAME
     netif_set_hostname(&eth0_netif, network.hostname);
+#endif
+
+#if MDNS_ENABLE
+    /* Register once; lwIP's netif ext callback (LWIP_NETIF_EXT_STATUS_CALLBACK)
+       makes mdns probe/announce itself when DHCP delivers the address. */
+    if(network.services.mdns && *network.hostname) {
+        mdns_resp_init();
+        services.mdns = mdns_resp_add_netif(&eth0_netif, network.hostname) == ERR_OK;
+    }
 #endif
 
     network_status.interface_up = On;

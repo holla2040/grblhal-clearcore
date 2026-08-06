@@ -15,7 +15,7 @@
 #define SYS_LIGHTWEIGHT_PROT       0
 #define LWIP_NETCONN               0
 #define LWIP_SOCKET                0
-#define LWIP_IGMP                  0
+#define LWIP_IGMP                  1        /* mDNS multicast group */
 #define LWIP_ICMP                  1
 #define LWIP_RAW                   0
 #define LWIP_DNS                   0
@@ -30,6 +30,12 @@
 #define LWIP_NETIF_HOSTNAME        1
 #define LWIP_NETIF_STATUS_CALLBACK 1
 #define LWIP_NETIF_LINK_CALLBACK   1
+/* mDNS responder: answers <hostname>.local. The ext status callback lets
+   mdns re-probe/announce on its own when DHCP delivers or changes the
+   address, so enet.c registers the netif once and never has to babysit. */
+#define LWIP_NETIF_EXT_STATUS_CALLBACK 1
+#define LWIP_MDNS_RESPONDER        1
+#define LWIP_NUM_NETIF_CLIENT_DATA 1        /* mDNS claims one slot */
 #define LWIP_CHKSUM_ALGORITHM      3
 
 #define MEM_ALIGNMENT              4
@@ -38,7 +44,7 @@
 #define MEMP_NUM_TCP_PCB           8
 #define MEMP_NUM_TCP_PCB_LISTEN    4
 #define MEMP_NUM_TCP_SEG           32
-#define MEMP_NUM_SYS_TIMEOUT       10
+#define MEMP_NUM_SYS_TIMEOUT       14       /* +IGMP tmr, +mDNS probe/announce */
 #define PBUF_POOL_SIZE             12
 #define PBUF_POOL_BUFSIZE          1536
 

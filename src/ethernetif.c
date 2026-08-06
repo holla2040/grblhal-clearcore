@@ -116,7 +116,7 @@ static void low_level_init (struct netif *netif)
      * is live before anyone has looked.
      */
     netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP |
-                   NETIF_FLAG_ETHERNET;
+                   NETIF_FLAG_ETHERNET | NETIF_FLAG_IGMP;
 
     /* Seed the PRNG from the MAC so two boards on one network diverge. */
     rand_state = ((uint32_t)if_mac[2] << 24) | ((uint32_t)if_mac[3] << 16) |
