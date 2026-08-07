@@ -1,54 +1,48 @@
-# Draft upstream issue: one errored block latches its error onto every later g-code line
+# Resolved: the "error latch" is grblHAL's post-error sync hold (compat level 0)
 
-Ready to file against grblHAL core once reproduced on a second driver (this
-report is from the ClearCore/SAME53 port, core `GRBL_VERSION 1.1f`, build
-`20260726`, vendored submodule). Not yet filed — filing is the owner's call.
+What looked like a bug — one errored block making every later g-code line
+repeat the same error, until `$G` cleared it — is a designed grblHAL
+mechanism, root-caused to `protocol.c` (~line 266 in this vendored core):
 
-## Symptom
-
-After at least one successfully executed g-code block, a single block that
-returns an error makes **every subsequent g-code line answer that same error
-code**, indefinitely — across telnet disconnect/reconnect — until any
-`$`-command executes. `$G` is enough to clear it. Realtime commands and
-`$`-commands are unaffected while latched; `<...>` status reports keep
-flowing and `$G` shows clean modal state throughout.
-
-## Reproduction (telnet, port 23; any transport should do)
-
-```
-G94          → ok
-G64          → error:20      (any rejected code seeds it)
-G94          → error:20      ← the same command that just ok'd
-G80          → error:20
-G1 X1 F100   → error:20      (motion also refused)
-$G           → [GC:...] ok
-G94          → ok            ← cleared
+```c
+#if COMPATIBILITY_LEVEL == 0
+    else if(gc_state.last_error == Status_OK || gc_state.last_error == Status_GcodeToolChangePending) {
+#else
+    else {
+#endif
+        if((gc_state.last_error = gc_execute_block(line)) != Status_OK)
 ```
 
-Notes from bisection on the bench:
+At `COMPATIBILITY_LEVEL 0` (this build), a g-code line executes only while
+`gc_state.last_error` is clean. After an errored block, every further g-code
+line SKIPS execution and falls through to `report.status_message(last_error)`
+— which is why the stored code replays verbatim, across reconnects. Three
+things reset it, all verified on the bench:
 
-- The latch **replays the seed's error code**: seeding with a G86 that
-  answered `error:28` made every later line answer `error:28`, not 20 —
-  which suggests a stored status being re-reported rather than re-parsing.
-- Seeding with an error as the FIRST line of a session (no prior ok'd
-  block) did NOT latch in one trial; error-after-ok latches reliably.
-- Reproduced identically on four builds: N_TOOLS 32 + NGC_EXPRESSIONS_ENABLE,
-  each flag alone, and a stock defaults build — so it is not tied to the
-  tool table, expressions, or any local plugin.
-- Survives stream reconnects (state is in the core/protocol, not a session).
-- A power cycle also clears it (trivially).
+- an **empty line** (`protocol.c`: "Empty line. For syncing purposes.") —
+  `G94 ok · G64 error:20 · G94 error:20 · <blank> ok · G94 ok`
+- any **`$` command** (its status overwrites `last_error`)
+- a reset/power cycle.
 
-## Why it goes unnoticed
+The purpose is stream-abort integrity: a sender that ignores an error must
+not have the rest of a now-invalid program silently executed under it — the
+hold forces an acknowledgement. Classic-grbl-compatible builds
+(`COMPATIBILITY_LEVEL >= 1`) take the `#else` branch and never hold, which
+is why the behaviour surprises people arriving from grbl.
 
-Most senders poll `$G` or `$#` routinely, clearing the latch within a
-report interval; a streamed job halts on its first error anyway. It bites
-exactly the workflows that send bare g-code lines back to back — and it
-produced a documented false "G28 unsupported" conclusion in this project's
-history (an error'd line followed by G28 probes) before being isolated.
+## Consequences for this project
 
-## Where to look (not yet root-caused)
+- **haasSender complies already**: it sends `$G` after every manual command
+  and, since the fidelity branch, after any streamed-job error halt. Both act
+  as the sync acknowledgement.
+- **Bare-terminal users (telnet/serial) must sync after an error** — send an
+  empty line — before more g-code. Now noted in HAASSENDER-BENCH.md.
+- `history/g28-false-alarm.md` in the sender repo is fully explained: the
+  "impossible" G28 errors were this hold replaying a previous line's error,
+  and the later successes followed `$`-commands.
 
-The $-command clearing and the code replay point away from `gc_state`
-(which `$G` reads without writing) and toward per-line status handling in
-`protocol.c` / the stream layer. `gc_state.skip_blocks` was ruled out (it
-returns Status_OK, not the seed error).
+## Upstream
+
+Not a defect report any more. If anything is worth raising upstream it is a
+documentation note: the compat-0 post-error hold and its empty-line sync are
+easy to mistake for a wedged parser from a terminal. Owner's call.

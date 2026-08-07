@@ -82,8 +82,8 @@ before believing any bench result.
 
 ## Still untested
 
-- `$341` tool-change modes 1–3 (M6 with $341=0 just sets the tool).
-- G86's missing word; G84/G33/G76/G95 (need a spindle encoder — hardware).
+- `$341` modes beyond the error:46 refusal (needs homing, i.e. limit switches).
+- G84/G33/G76/G95 (need a spindle encoder — hardware).
 - Homing/limit switches (no switches fitted, as ever).
 
 ## Cross-environment fixture (2026-08-07, addendum)
@@ -95,9 +95,11 @@ cycles under the tool-table TLO.
 
 Learned on the way:
 
-- **In-file `T1 M6` enters the `Tool` state and waits for CYCLE START** (the
-  expressions build's tool-change flow) — the HAAS-correct behaviour, and what
-  the sim does. A streamed `T1 M6` over telnet just sets the tool.
+- **M6 always enters the `Tool` state and waits for CYCLE START** on this
+  build, streamed or in-file (the earlier "streamed M6 just sets the tool"
+  note was wrong — a blindly-sent `~` had resumed the hold before the poll).
+  `$341=1` instead answers error:46 (homing required) on this switchless
+  bench — the manual tool-change modes need a homed machine.
 - **A same-block `G49` does not lift the offset from its own move** —
   `G49 G0 Z10.` went to machine −15.400 (work Z10 under the old −25.4), while
   a same-block `G43 H` DOES shift its own move. The sim now mirrors both.
@@ -105,3 +107,12 @@ Learned on the way:
   with its session; hold the connection open to completion.
 - **A job aborted mid-tool-change latches error:54** on every later G43/G49
   ("tool change pending"). A soft reset (0x18) clears it.
+
+## Overnight addendum (2026-08-07)
+
+- **G43.2 additive TLO verified**: `G43 H1` (−25.4) then `G43.2 H2` (−5) →
+  `[TLO:…,-30.400,…]`; `G49` → zeros.
+- **The "error latch" is root-caused and reclassified** — it is grblHAL's
+  designed post-error sync hold at COMPATIBILITY_LEVEL 0; an empty line or
+  any `$` command acknowledges it. Full story in `error-latch-repro.md`.
+  After an error on a bare terminal: press ENTER on an empty line first.
