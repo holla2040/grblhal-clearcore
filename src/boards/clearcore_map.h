@@ -71,20 +71,32 @@
 #define A_LIMIT_PIN     7
 #define A_LIMIT_EXTINT  7
 
-/* Control inputs (reset / feed hold / cycle start) */
+/* Control inputs (reset / feed hold). The hardware CYCLE START input (A-12)
+   was given up 2026-08-07 to free IO-5 as an output: no button was ever
+   wired, and the pendant's soft cycle start is what this bench always used. */
 #define RESET_GRP       GRP_B   /* A-10 = PB06 */
 #define RESET_PIN       6
 #define RESET_EXTINT    6
 #define FEED_HOLD_GRP   GRP_B   /* A-11 = PB05 */
 #define FEED_HOLD_PIN   5
 #define FEED_HOLD_EXTINT 5
-#define CYCLE_START_GRP GRP_C   /* A-12 = PC03 */
-#define CYCLE_START_PIN 3
-#define CYCLE_START_EXTINT 3
 
-/* Probe input — polled (IO-0..5 have no free EXTINT lines) */
-#define PROBE_GRP       GRP_C   /* IO-5 input read IN05n = PC19 */
-#define PROBE_PIN       19
+/* Probe input — polled. Moved from IO-5's read pin (PC19) to A-12 when IO-5
+   became the chip-conveyor output; A-12 is input-conditioned like every
+   other input (active-LOW, absorbed by the probe invert setting). */
+#define PROBE_GRP       GRP_C   /* A-12 = IN12n = PC03 */
+#define PROBE_PIN       3
+
+/* Aux digital out 0 — IO-5 via DRV8844 channel 1 (netlist p5/6):
+   PB03 = OUT05_{ENABLE05} -> EN1 (active HIGH, pull-down = fail-safe off),
+   PB12 = Polarity05_{PWM05A} -> IN1 (IN low = load ON, like the spindle's
+   channel). PB13 (PWM05B, the IO-5+ bridge half) stays unused: single-ended
+   load, coil from Vsupply to IO-5 per the hardware manual. Drives the CHIP
+   conveyor relay (haas_plugin M31/M33). */
+#define AUXOUT0_EN_GRP  GRP_B
+#define AUXOUT0_EN_PIN  3
+#define AUXOUT0_IN_GRP  GRP_B
+#define AUXOUT0_IN_PIN  12
 
 /* Digital outputs (24 V low-side drivers on the IO connectors).
    POLARITY (schematic netlist, pages 5/6, 2026-08-04): IO-0..IO-3 pass a

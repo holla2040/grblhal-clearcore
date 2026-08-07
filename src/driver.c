@@ -44,8 +44,7 @@
 
 #define LIMIT_EIC_MASK   ((1UL << X_LIMIT_EXTINT) | (1UL << Y_LIMIT_EXTINT) | \
                           (1UL << Z_LIMIT_EXTINT) | (1UL << A_LIMIT_EXTINT))
-#define CONTROL_EIC_MASK ((1UL << RESET_EXTINT) | (1UL << FEED_HOLD_EXTINT) | \
-                          (1UL << CYCLE_START_EXTINT))
+#define CONTROL_EIC_MASK ((1UL << RESET_EXTINT) | (1UL << FEED_HOLD_EXTINT))
 
 static bool IOInitDone = false;
 static bool probe_inverted = false;
@@ -141,7 +140,7 @@ static control_signals_t systemGetState (void)
 
     signals.reset = !!(b & (1UL << RESET_PIN));
     signals.feed_hold = !!(b & (1UL << FEED_HOLD_PIN));
-    signals.cycle_start = !!(c & (1UL << CYCLE_START_PIN));
+    (void)c;    /* A-12 is the probe now; cycle start is soft-only */
 
     /* Invert ONLY the signals this driver actually reads. The core forces
        limits_override into control_invert (settings.c: "control_invert.mask
@@ -198,7 +197,6 @@ void EIC_EXTINT_2_Handler (void) { limit_isr(Z_LIMIT_EXTINT); }
 void EIC_EXTINT_7_Handler (void) { limit_isr(A_LIMIT_EXTINT); }
 void EIC_EXTINT_6_Handler (void) { control_isr(RESET_EXTINT); }
 void EIC_EXTINT_5_Handler (void) { control_isr(FEED_HOLD_EXTINT); }
-void EIC_EXTINT_3_Handler (void) { control_isr(CYCLE_START_EXTINT); }
 
 /* Configure an input pin; eic = also route it to the EIC (pmux A) */
 static void pin_input_init (uint8_t grp, uint8_t pin, bool eic)
@@ -212,8 +210,7 @@ static void pin_input_init (uint8_t grp, uint8_t pin, bool eic)
 static void inputs_init (void)
 {
     static const uint8_t eic_irqs[] = { X_LIMIT_EXTINT, Y_LIMIT_EXTINT, Z_LIMIT_EXTINT,
-                                        A_LIMIT_EXTINT, RESET_EXTINT, FEED_HOLD_EXTINT,
-                                        CYCLE_START_EXTINT };
+                                        A_LIMIT_EXTINT, RESET_EXTINT, FEED_HOLD_EXTINT };
     uint_fast8_t i;
 
     CLOCK_ENABLE(APBAMASK, EIC_);
@@ -225,7 +222,6 @@ static void inputs_init (void)
     pin_input_init(A_LIMIT_GRP, A_LIMIT_PIN, true);
     pin_input_init(RESET_GRP, RESET_PIN, true);
     pin_input_init(FEED_HOLD_GRP, FEED_HOLD_PIN, true);
-    pin_input_init(CYCLE_START_GRP, CYCLE_START_PIN, true);
 
     pin_input_init(PROBE_GRP, PROBE_PIN, false);        /* polled */
 
@@ -239,8 +235,9 @@ static void inputs_init (void)
 
     /* Both-edge sense on all used lines (0,1,2,3,5,6,7 — all in CONFIG[0]);
        the ISRs read actual pin state, so edge direction doesn't matter. */
+    /* Line 3 (was hardware cycle start) is unarmed: A-12 is the polled probe. */
     EIC->CONFIG[0].reg = EIC_CONFIG_SENSE0_BOTH | EIC_CONFIG_SENSE1_BOTH |
-                         EIC_CONFIG_SENSE2_BOTH | EIC_CONFIG_SENSE3_BOTH |
+                         EIC_CONFIG_SENSE2_BOTH |
                          EIC_CONFIG_SENSE5_BOTH | EIC_CONFIG_SENSE6_BOTH |
                          EIC_CONFIG_SENSE7_BOTH;
 
@@ -346,6 +343,26 @@ static void outputs_init (void)
     pin_write(COOLANT_MIST_GRP, COOLANT_MIST_PIN, IO_OUT_INVERT ? true : false);
     pin_dir_out(COOLANT_FLOOD_GRP, COOLANT_FLOOD_PIN);
     pin_dir_out(COOLANT_MIST_GRP, COOLANT_MIST_PIN);
+
+    /* Aux out 0 = IO-5 via DRV8844 ch1: EN low + IN high = safely OFF at
+       boot (EN's 4.99k pull-down already guarantees off during reset). */
+    pin_write(AUXOUT0_EN_GRP, AUXOUT0_EN_PIN, false);
+    pin_write(AUXOUT0_IN_GRP, AUXOUT0_IN_PIN, true);
+    pin_dir_out(AUXOUT0_EN_GRP, AUXOUT0_EN_PIN);
+    pin_dir_out(AUXOUT0_IN_GRP, AUXOUT0_IN_PIN);
+}
+
+/* --- Aux digital out: IO-5 via DRV8844 ch1 (EN high + IN low = ON).
+ *
+ * Driven directly by the haas_plugin's M31/M33 — the core ioports layer was
+ * tried first and faulted the boot in driver_setup; one relay does not need
+ * a registry. ponytail: revisit ioports when a second aux pin ever exists.
+ */
+
+void aux_out0_set (bool on)
+{
+    pin_write(AUXOUT0_IN_GRP, AUXOUT0_IN_PIN, !on);   /* IN low = ON */
+    pin_write(AUXOUT0_EN_GRP, AUXOUT0_EN_PIN, on);    /* EN gates it */
 }
 
 /* --- Atomic helpers (ported from the 2021 driver.c:157-177) --- */
@@ -478,7 +495,7 @@ static bool driver_setup (settings_t *settings)
     dbg_puts("setup: inputs\n");
     inputs_init();          /* EIC limits/control + probe/HLFB inputs */
     dbg_puts("setup: outputs\n");
-    outputs_init();         /* coolant pins (spindle pins init in spindle_cc_register) */
+    outputs_init();         /* coolant pins + IO-5 aux out (chip conveyor relay) */
 
 #if USB_SERIAL_CDC
     on_execute_realtime_usb_prev = grbl.on_execute_realtime;
@@ -567,7 +584,7 @@ bool driver_init (void)
 
     hal.signals_cap.reset = On;
     hal.signals_cap.feed_hold = On;
-    hal.signals_cap.cycle_start = On;
+    /* cycle start is soft-only since A-12 became the probe (2026-08-07) */
     hal.limits_cap.min.mask = AXES_BITMASK;
     hal.coolant_cap.flood = On;
     hal.coolant_cap.mist = On;

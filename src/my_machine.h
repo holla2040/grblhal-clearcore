@@ -32,9 +32,11 @@
 // registered as an instance. Comment out to go UART-only.
 #define USB_SERIAL_CDC 1
 
-// Debug console: 115200 TX-only on IO-0 (combined I/O header pin 12, load
-// with ~1.5k to GND for 3.3V logic). Claims IO-0 — mist output unavailable.
-#define DEBUG_CONSOLE_ENABLE 1
+// Debug console (115200 TX-only on IO-0): OFF since 2026-08-07 — it claimed
+// IO-0, which is the mist coolant output. With it off, M07/M88 drive IO-0
+// for real: that is the AUX CLNT (through-spindle coolant) pump relay.
+// Re-enable only for firmware bring-up debugging, losing AUX CLNT while on.
+#define DEBUG_CONSOLE_ENABLE 0
 
 // Ethernet (SAME53 GMAC + lwIP + networking plugin), telnet first
 #define ETHERNET_ENABLE 1

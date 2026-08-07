@@ -25,9 +25,19 @@
 #include "grbl/stream_file.h"
 #include "grbl/vfs.h"
 #include "grbl/nuts_bolts.h"
+#include "grbl/coolant_control.h"
 
 #define M97_STACK_DEPTH 8
-#define MCode_HaasSubCall ((user_mcode_t)97)
+#define MCode_HaasSubCall   ((user_mcode_t)97)
+#define MCode_ChipFwd       ((user_mcode_t)31)
+#define MCode_ChipStop      ((user_mcode_t)33)
+#define MCode_TscOn         ((user_mcode_t)88)
+#define MCode_TscOff        ((user_mcode_t)89)
+static bool haas_mcode (user_mcode_t m)
+{
+    return m == MCode_HaasSubCall || m == MCode_ChipFwd || m == MCode_ChipStop ||
+           m == MCode_TscOn || m == MCode_TscOff;
+}
 
 typedef struct {
     vfs_file_t *file;
@@ -116,13 +126,21 @@ static bool find_nblock (vfs_file_t *file, uint32_t target)
 
 static user_mcode_type_t mcode_check (user_mcode_t mcode)
 {
-    return mcode == MCode_HaasSubCall
+    return haas_mcode(mcode)
             ? UserMCode_Normal
             : (user_mcode.check ? user_mcode.check(mcode) : UserMCode_Unsupported);
 }
 
 static status_code_t mcode_validate (parser_block_t *gc_block)
 {
+    // M31/M33 chip conveyor and M88/M89 TSC: word-less, executed in-order
+    // after motion, exactly like the coolant M-codes they sit beside.
+    if(gc_block->user_mcode == MCode_ChipFwd || gc_block->user_mcode == MCode_ChipStop ||
+       gc_block->user_mcode == MCode_TscOn || gc_block->user_mcode == MCode_TscOff) {
+        gc_block->user_mcode_sync = true;
+        return Status_OK;
+    }
+
     if(gc_block->user_mcode != MCode_HaasSubCall)
         return user_mcode.validate ? user_mcode.validate(gc_block) : Status_Unhandled;
 
@@ -156,6 +174,21 @@ static status_code_t mcode_validate (parser_block_t *gc_block)
 
 static void mcode_execute (sys_state_t state, parser_block_t *gc_block)
 {
+    if(gc_block->user_mcode == MCode_ChipFwd || gc_block->user_mcode == MCode_ChipStop) {
+        aux_out0_set(gc_block->user_mcode == MCode_ChipFwd);
+        return;
+    }
+
+    if(gc_block->user_mcode == MCode_TscOn || gc_block->user_mcode == MCode_TscOff) {
+        // TSC rides the mist channel: IO-0 is the pump relay. Going through
+        // coolant_set_state keeps gc modal state, $G and the A: report true.
+        coolant_state_t c = gc_state.modal.coolant;
+        c.mist = gc_block->user_mcode == MCode_TscOn;
+        coolant_set_state(c);
+        gc_state.modal.coolant = c;
+        return;
+    }
+
     if(gc_block->user_mcode != MCode_HaasSubCall) {
         if(user_mcode.execute)
             user_mcode.execute(state, gc_block);

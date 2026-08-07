@@ -116,3 +116,18 @@ Learned on the way:
   designed post-error sync hold at COMPATIBILITY_LEVEL 0; an empty line or
   any `$` command acknowledges it. Full story in `error-latch-repro.md`.
   After an error on a bare terminal: press ENTER on an empty line first.
+
+## I/O pass (2026-08-07 morning)
+
+Pin trade, owner-approved: debug console OFF frees IO-0 (mist = the AUX CLNT
+/ TSC pump, M88/M89 ride the coolant mist channel → `A:M` verified on the
+wire); probe moved IO-5→A-12 (PC03) sacrificing the never-wired hardware
+CYCLE START input, freeing IO-5 (DRV8844 ch1: EN=PB03, IN=PB12) as the chip
+conveyor relay under new plugin M-codes M31/M33 — both ack, LED/relay is the
+owner's morning eyeball. Wiring: coil from Vsupply to IO-5/IO-0 on the
+combined I/O header (pins 6/8/14 = Vsupply, 12 = IO-0, 19/20 = IO-5).
+CAUTION: registering the port with the core ioports layer hardfaulted
+driver_setup (board off USB and ethernet until reflashed over the ICE); a
+direct pin helper replaced it. Probe polarity on A-12 unchanged (active-low
+conditioning, absorbed by the invert setting); bench-check G38.2 when a
+probe is next wired.

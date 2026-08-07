@@ -23,3 +23,4 @@
 #endif
 
 #endif /* __DRIVER_H__ */
+void aux_out0_set (bool on);
