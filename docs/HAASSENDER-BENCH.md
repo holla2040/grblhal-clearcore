@@ -85,3 +85,23 @@ before believing any bench result.
 - `$341` tool-change modes 1–3 (M6 with $341=0 just sets the tool).
 - G86's missing word; G84/G33/G76/G95 (need a spindle encoder — hardware).
 - Homing/limit switches (no switches fitted, as ever).
+
+## Cross-environment fixture (2026-08-07, addendum)
+
+`haasSender/test/fixtures/O0100.nc` ran on the sim seat (streamed + expanded)
+and via `$F=O0100.NC` DNC with `/P200.macro` on the card. Both ended at
+**MPos [10.000, 2.000, -15.400]** — M97 P100 L2 twice, M98 P200 once, canned
+cycles under the tool-table TLO.
+
+Learned on the way:
+
+- **In-file `T1 M6` enters the `Tool` state and waits for CYCLE START** (the
+  expressions build's tool-change flow) — the HAAS-correct behaviour, and what
+  the sim does. A streamed `T1 M6` over telnet just sets the tool.
+- **A same-block `G49` does not lift the offset from its own move** —
+  `G49 G0 Z10.` went to machine −15.400 (work Z10 under the old −25.4), while
+  a same-block `G43 H` DOES shift its own move. The sim now mirrors both.
+- **Closing the stream connection aborts a running `$F=` job.** The job dies
+  with its session; hold the connection open to completion.
+- **A job aborted mid-tool-change latches error:54** on every later G43/G49
+  ("tool change pending"). A soft reset (0x18) clears it.
