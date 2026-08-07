@@ -49,4 +49,13 @@
 // SD card job streaming (SERCOM4 SPI + FatFs + sdcard plugin)
 #define SDCARD_ENABLE 1
 
+// --- haasSender branch: HAAS-parity features ---
+// Persistent NVS tool table: native G43 H<n>, G43.2, G10 L1/L10/L11, [T:] in $#.
+// NVS arithmetic (nvs.h): GRBL_NVS_SIZE = 1024 + 32*(24+2) = 1856; driver areas
+// (networking/webui) allocate from there, bounded by NVS_AREA_SIZE 4096 — fits.
+#define N_TOOLS 32
+// O-word flow control (sub/if/while/repeat), [expr] + #params (ngc_expr/flowctrl),
+// and the SD ATC macro layer. Forces NGC_PARAMETERS_ENABLE on (already default-on).
+#define NGC_EXPRESSIONS_ENABLE 1
+
 #endif
