@@ -36,16 +36,9 @@ static void usb_pump (void)
     while(tud_cdc_available()) {
         char data = (char)tud_cdc_read_char();
 
-        dbg_putc(data);     /* mirror inbound USB to the debug console:
-                               shows the command in flight when a hang hits */
-
-        /* local echo so a bare terminal shows what was typed */
-        if(data == '\r' || data == '\n') {
-            tud_cdc_write_char('\r');
-            tud_cdc_write_char('\n');
-        } else
-            tud_cdc_write_char(data);
-        tud_cdc_write_flush();
+        /* Hang-chase-era local echo removed 2026-08-07: grbl streams do not
+           echo, and a sender parsing its own commands back as unsolicited
+           lines is noise a student would see in the status bar. */
 
         if(!enqueue_realtime_command(data)) {
             uint_fast16_t next_head = BUFNEXT(rxbuf.head, rxbuf);
