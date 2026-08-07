@@ -24,6 +24,7 @@
 
 static spindle_pwm_t spindle_pwm;
 static uint32_t pwm_prescaler_bits = TCC_CTRLA_PRESCALER_DIV1_Val;
+static spindle_id_t spindle_id = -1;
 
 static inline void io_out (uint8_t grp, uint8_t pin, bool on)
 {
@@ -208,5 +209,21 @@ void spindle_cc_register (void)
 
     pin_pmux(SPINDLE_PWM_GRP, SPINDLE_PWM_PIN, SPINDLE_PWM_MUX);
 
-    spindle_register(&spindle, "ClearCore PWM");
+    spindle_id = spindle_register(&spindle, "ClearCore PWM");
+}
+
+/* $30/$31/$33..$36 land in settings.pwm_spindle immediately, but the clamp in
+   spindle_set_rpm() and the PWM gradient read the *copies* that only
+   spindle_precompute_pwm_values() refreshes — so without this the new limits
+   sat unused until the next boot re-ran spindleConfig() (bench 2026-08-07:
+   $30=5000 then M3 S6000 still reported FS:0,6000). */
+void spindle_cc_settings_changed (void)
+{
+    spindleConfig(spindle_get_hal(spindle_id, SpindleHAL_Configured));
+
+    /* spindle_update_caps() pushes rpm_min/rpm_max to the active copy, but not
+       set_state or cap.variable — re-select so the on/off fallback ($30<=$31)
+       propagates too. Pre-activation get_default() is -2, so this is a no-op. */
+    if(spindle_id == spindle_get_default())
+        spindle_select(spindle_id);
 }

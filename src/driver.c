@@ -479,11 +479,11 @@ static void setPeriphPinDescription (const pin_function_t function, const pin_gr
 
 static void settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
-    (void)changed;
-
     if(IOInitDone) {
         stepper_settings_changed(settings);     /* pulse width/delay → TC6 */
         probeConfigure(false, false);
+        if(changed.spindle)
+            spindle_cc_settings_changed();      /* rpm limits + PWM gradient */
     }
 }
 
